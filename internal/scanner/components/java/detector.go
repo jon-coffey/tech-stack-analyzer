@@ -92,6 +92,7 @@ func (d *Detector) detectPomXML(file types.File, currentPath, basePath string, p
 		payload.Properties["maven"] = map[string]string{
 			"group_id":    projectInfo.GroupId,
 			"artifact_id": projectInfo.ArtifactId,
+			"version":     projectInfo.Version,
 		}
 	}
 
@@ -158,6 +159,7 @@ func (d *Detector) detectGradle(file types.File, currentPath, basePath string, p
 		payload.Properties["gradle"] = map[string]string{
 			"group_id":    projectInfo.Group,
 			"artifact_id": artifactName,
+			"version":     projectInfo.Version,
 		}
 	}
 
