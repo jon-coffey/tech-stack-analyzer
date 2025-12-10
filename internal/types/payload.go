@@ -432,9 +432,11 @@ func (p *Payload) AddEdges(target *Payload) {
 	p.Edges = append(p.Edges, edge)
 }
 
-// AddDependency adds a dependency
+// AddDependency adds a dependency with deduplication
 func (p *Payload) AddDependency(dep Dependency) {
-	p.Dependencies = append(p.Dependencies, dep)
+	if !p.containsDependency(dep) {
+		p.Dependencies = append(p.Dependencies, dep)
+	}
 }
 
 // DetectLanguage detects the language from a file name using a LanguageDetector
