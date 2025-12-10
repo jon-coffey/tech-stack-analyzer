@@ -244,7 +244,7 @@ The scanner automatically collects code statistics using [SCC](https://github.co
           "avg_file_size": 236.81,
           "complexity_per_kloc": 116.49,
           "avg_complexity": 21.08,
-          "top_languages": [{"language": "Go", "pct": 1}]
+          "primary_languages": [{"language": "Go", "pct": 1}]
         },
         "languages": ["Go"] 
       },
@@ -296,7 +296,7 @@ The scanner automatically collects code statistics using [SCC](https://github.co
         "avg_file_size": 400.6,
         "complexity_per_kloc": 165.08,
         "avg_complexity": 51.16,
-        "top_languages": [
+        "primary_languages": [
           {"language": "C++", "pct": 0.90},
           {"language": "C", "pct": 0.05},
           {"language": "C#", "pct": 0.02}
@@ -315,7 +315,7 @@ The scanner automatically collects code statistics using [SCC](https://github.co
 | `avg_file_size` | lines / files | File granularity |
 | `complexity_per_kloc` | complexity / (code/1000) | Maintainability indicator |
 | `avg_complexity` | complexity / files | Per-file complexity |
-| `top_languages` | top 5 by lines (≥1%) | Main programming languages |
+| `primary_languages` | primary programming languages (≥1%) | Main programming languages |
 
 All values rounded to 2 decimal places. KPIs are computed from **programming languages only** (excludes data formats like JSON, YAML, CSV).
 

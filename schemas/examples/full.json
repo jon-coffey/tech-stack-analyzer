@@ -199,7 +199,7 @@
           "avg_file_size": 222.28,
           "complexity_per_kloc": 120.98,
           "avg_complexity": 20.58,
-          "top_languages": [
+          "primary_languages": [
             {
               "language": "Go",
               "pct": 1

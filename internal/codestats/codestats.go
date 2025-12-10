@@ -63,20 +63,20 @@ type UnanalyzedBucket struct {
 	ByLanguage []OtherLanguageStats `json:"by_language"` // Sorted by lines descending
 }
 
-// TopLanguage represents a top programming language in Metrics
-type TopLanguage struct {
+// PrimaryLanguage represents a primary programming language in Metrics
+type PrimaryLanguage struct {
 	Language string  `json:"language"`
 	Pct      float64 `json:"pct"`
 }
 
 // Metrics holds derived code metrics (programming languages only)
 type Metrics struct {
-	CommentRatio      float64       `json:"comment_ratio"`       // comments / code (documentation level)
-	CodeDensity       float64       `json:"code_density"`        // code / lines (actual code vs whitespace/comments)
-	AvgFileSize       float64       `json:"avg_file_size"`       // lines / files
-	ComplexityPerKLOC float64       `json:"complexity_per_kloc"` // complexity / (code / 1000)
-	AvgComplexity     float64       `json:"avg_complexity"`      // complexity / files
-	TopLanguages      []TopLanguage `json:"top_languages"`       // top 5 programming languages (≥1%)
+	CommentRatio      float64           `json:"comment_ratio"`       // comments / code (documentation level)
+	CodeDensity       float64           `json:"code_density"`        // code / lines (actual code vs whitespace/comments)
+	AvgFileSize       float64           `json:"avg_file_size"`       // lines / files
+	ComplexityPerKLOC float64           `json:"complexity_per_kloc"` // complexity / (code / 1000)
+	AvgComplexity     float64           `json:"avg_complexity"`      // complexity / files
+	PrimaryLanguages  []PrimaryLanguage `json:"primary_languages"`   // primary programming languages (≥1%)
 }
 
 // TypeBucket holds stats for a language type (programming, data, markup, prose)
@@ -289,19 +289,19 @@ func (a *sccAnalyzer) calculateMetrics(analyzed []LanguageStats) Metrics {
 		kpis.AvgComplexity = round2(float64(progStats.Complexity) / float64(progStats.Files))
 	}
 
-	// Top programming languages
+	// Primary programming languages
 	var progLangs []LanguageStats
 	for _, ls := range analyzed {
 		if enry.GetLanguageType(ls.Language) == enry.Programming {
 			progLangs = append(progLangs, ls)
 		}
 	}
-	a.setTopLanguages(&kpis, progLangs, progStats.Lines)
+	a.setPrimaryLanguages(&kpis, progLangs, progStats.Lines)
 	return kpis
 }
 
-// setTopLanguages sets top programming languages (max 5, ≥1% threshold)
-func (a *sccAnalyzer) setTopLanguages(kpis *Metrics, progLangs []LanguageStats, totalLines int64) {
+// setPrimaryLanguages sets primary programming languages (max 5, ≥1% threshold)
+func (a *sccAnalyzer) setPrimaryLanguages(kpis *Metrics, progLangs []LanguageStats, totalLines int64) {
 	if totalLines == 0 || len(progLangs) == 0 {
 		return
 	}
@@ -316,7 +316,7 @@ func (a *sccAnalyzer) setTopLanguages(kpis *Metrics, progLangs []LanguageStats, 
 		if pct < minPct {
 			break // Languages are sorted by lines, so remaining will be smaller
 		}
-		kpis.TopLanguages = append(kpis.TopLanguages, TopLanguage{
+		kpis.PrimaryLanguages = append(kpis.PrimaryLanguages, PrimaryLanguage{
 			Language: ls.Language,
 			Pct:      pct,
 		})
@@ -656,7 +656,7 @@ func (a *sccAnalyzer) calculateComponentMetricsForType(stats Stats, analyzed []L
 		kpis.AvgComplexity = round2(float64(stats.Complexity) / float64(stats.Files))
 	}
 
-	// Calculate top programming languages for this component
+	// Calculate primary programming languages for this component
 	var progLangs []LanguageStats
 	for _, ls := range analyzed {
 		if enry.GetLanguageType(ls.Language) == enry.Programming {
@@ -665,7 +665,7 @@ func (a *sccAnalyzer) calculateComponentMetricsForType(stats Stats, analyzed []L
 	}
 	// Sort by lines descending
 	sort.Slice(progLangs, func(i, j int) bool { return progLangs[i].Lines > progLangs[j].Lines })
-	a.setTopLanguages(&kpis, progLangs, stats.Lines)
+	a.setPrimaryLanguages(&kpis, progLangs, stats.Lines)
 
 	return kpis
 }
