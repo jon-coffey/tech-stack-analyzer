@@ -9,13 +9,6 @@
 # 5. Built-in defaults - Used when nothing else is specified
 
 scan:
-  # What to scan - specify one or more paths
-  # If not specified, defaults to current directory (".")
-  paths:
-    - "/path/to/project1"
-    - "/path/to/project2"
-    # - "/path/to/single/file.xml"  # Also supports single files
-  
   # Output configuration
   output:
     file: "results.json"           # Output file path, or "-" for stdout
@@ -79,16 +72,18 @@ scan:
 # Example usage scenarios:
 #
 # 1. Developer workflow:
-#    stack-analyzer scan --config scan-config.yml
+#    stack-analyzer scan --config scan-config.yml /path/to/project
 #
 # 2. CI/CD pipeline with inline JSON:
-#    stack-analyzer scan --config '{"scan":{"paths":["./project"],"output":{"file":"$BUILD_DIR/scan-results.json"},"properties":{"build":"'$BUILD_NUMBER'"}}}'
+#    stack-analyzer scan --config '{"scan":{"output":{"file":"$BUILD_DIR/scan-results.json"},"properties":{"build":"'$BUILD_NUMBER'"}}}' /path/to/project
 #
-# 3. Portfolio analysis (multiple repositories):
-#    stack-analyzer scan --config portfolio-config.yml --output portfolio-analysis.json
+# 3. Config overrides (CLI flags take precedence):
+#    stack-analyzer scan --config scan-config.yml --verbose --output custom.json /path/to/project
 #
-# 4. Config overrides (CLI flags take precedence):
-#    stack-analyzer scan --config scan-config.yml --verbose --output custom.json
+# 4. Multiple repositories (simple approach):
+#    for repo in repo1 repo2 repo3; do
+#      stack-analyzer scan --config scan-config.yml $repo --output $repo-analysis.json
+#    done
 #
 # PRECEDENCE EXAMPLES:
 # - CLI flag --debug=true overrides scan-config debug: false

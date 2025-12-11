@@ -36,9 +36,6 @@ type ScanConfigFile struct {
 
 // ScanConfigSection contains all scan configuration options
 type ScanConfigSection struct {
-	// What to scan
-	Paths []string `yaml:"paths,omitempty" json:"paths,omitempty"`
-
 	// Output configuration (legacy field names for backward compatibility)
 	Output OutputConfig `yaml:"output,omitempty" json:"output,omitempty"`
 
@@ -180,14 +177,6 @@ func isDefaultValue(field reflect.Value) bool {
 	default:
 		return field.IsZero()
 	}
-}
-
-// GetScanPaths returns the paths to scan, defaulting to ["."] if not specified
-func (c *ScanConfigFile) GetScanPaths() []string {
-	if c == nil || len(c.Scan.Paths) == 0 {
-		return []string{"."}
-	}
-	return c.Scan.Paths
 }
 
 // GetMergedConfig merges scan config with project config (.stack-analyzer.yml)

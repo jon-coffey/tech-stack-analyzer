@@ -12,7 +12,6 @@ import (
 	"github.com/petrarca/tech-stack-analyzer/internal/aggregator"
 	"github.com/petrarca/tech-stack-analyzer/internal/codestats"
 	"github.com/petrarca/tech-stack-analyzer/internal/config"
-	"github.com/petrarca/tech-stack-analyzer/internal/metadata"
 	"github.com/petrarca/tech-stack-analyzer/internal/scanner"
 	"github.com/petrarca/tech-stack-analyzer/internal/types"
 	"github.com/spf13/cobra"
@@ -79,8 +78,8 @@ frameworks, databases, and services used in your codebase.
 Examples:
   stack-analyzer scan /path/to/project
   stack-analyzer scan /path/to/pom.xml
-  stack-analyzer scan --config scan-config.yml
-  stack-analyzer scan --config '{"scan":{"paths":["/path/to/project"]}}'
+  stack-analyzer scan --config scan-config.yml /path/to/project
+  stack-analyzer scan --config '{"scan":{"output":{"file":"$BUILD_DIR/scan-results.json"},"properties":{"build":"'$BUILD_NUMBER'"}}}' /path/to/project
   stack-analyzer scan --aggregate techs,languages /path/to/project
   stack-analyzer scan --aggregate all /path/to/project
   stack-analyzer scan --exclude vendor,node_modules /path/to/project
@@ -179,174 +178,8 @@ func resolveScanPath(args []string, logger *slog.Logger) (absPath string, isFile
 
 // resolveSingleScanPath resolves a single scan path, handling both config and args
 func resolveSingleScanPath(configPath string, args []string, logger *slog.Logger) (absPath string, isFile bool) {
-	// If we have a config path and no args, use the config path
-	if configPath != "" && len(args) == 0 {
-		return resolveScanPath([]string{configPath}, logger)
-	}
-
-	// Otherwise use the traditional args-based resolution
+	// Use traditional args-based resolution (ignore configPath since we removed multi-path)
 	return resolveScanPath(args, logger)
-}
-
-// runMultiScan handles scanning multiple paths
-func runMultiScan(paths []string, logger *slog.Logger) {
-	fmt.Fprintf(os.Stderr, "Scanning %d paths...\n", len(paths))
-
-	var results []interface{}
-
-	for i, path := range paths {
-		fmt.Fprintf(os.Stderr, "[%d/%d] Scanning: %s\n", i+1, len(paths), path)
-
-		result := scanSinglePath(path, logger)
-		if result != nil {
-			results = append(results, result)
-		}
-	}
-
-	generateMultiScanOutput(results, logger)
-}
-
-// scanSinglePath scans a single path and returns the result
-func scanSinglePath(path string, logger *slog.Logger) interface{} {
-	// Validate path
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		logger.Error("Invalid path", "path", path, "error", err)
-		return nil
-	}
-
-	fileInfo, err := os.Stat(absPath)
-	if os.IsNotExist(err) {
-		logger.Error("Path does not exist", "path", absPath)
-		return nil
-	}
-
-	// Initialize scanner for this path
-	scannerPath := absPath
-	isFile := !fileInfo.IsDir()
-	if isFile {
-		scannerPath = filepath.Dir(absPath)
-	}
-
-	// Load project config for this path
-	projectConfig, err := config.LoadConfig(scannerPath)
-	if err != nil {
-		logger.Error("Failed to load project configuration", "path", scannerPath, "error", err)
-		return nil
-	}
-
-	// Merge scan config with project config
-	mergedConfig := getMergedConfig(projectConfig)
-
-	// Apply merged excludes
-	excludePatterns := mergedConfig.MergeExcludes(settings.ExcludePatterns)
-
-	// Create and run scanner
-	payload, err := createAndRunScanner(scannerPath, absPath, isFile, excludePatterns, logger)
-	if err != nil {
-		logger.Error("Failed to scan", "path", absPath, "error", err)
-		return nil
-	}
-
-	// Enhance payload with metadata and configured techs
-	enhancePayload(payload, absPath, mergedConfig)
-
-	return payload
-}
-
-// getMergedConfig returns the merged configuration
-func getMergedConfig(projectConfig *config.ScanConfig) *config.ScanConfig {
-	if scanConfig != nil {
-		return scanConfig.GetMergedConfig(projectConfig)
-	}
-	return projectConfig
-}
-
-// createAndRunScanner creates the scanner and runs the scan
-func createAndRunScanner(scannerPath, absPath string, isFile bool, excludePatterns []string, logger *slog.Logger) (interface{}, error) {
-	// Create code stats analyzer
-	codeStatsAnalyzer := codestats.NewAnalyzerWithPerComponent(!settings.NoCodeStats, settings.CodeStatsPerComponent)
-
-	// Create scanner
-	s, err := scanner.NewScannerWithOptionsAndLogger(scannerPath, excludePatterns, settings.Verbose, settings.Debug, settings.TraceTimings, settings.TraceRules, codeStatsAnalyzer, logger, settings.RootID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create scanner: %w", err)
-	}
-
-	// Scan
-	if isFile {
-		return s.ScanFile(filepath.Base(absPath))
-	}
-	return s.Scan()
-}
-
-// enhancePayload adds metadata and configured techs to the payload
-func enhancePayload(payload interface{}, absPath string, mergedConfig *config.ScanConfig) {
-	p, ok := payload.(*types.Payload)
-	if !ok {
-		return
-	}
-
-	// Attach code stats if enabled
-	codeStatsAnalyzer := codestats.NewAnalyzerWithPerComponent(!settings.NoCodeStats, settings.CodeStatsPerComponent)
-	if codeStatsAnalyzer.IsEnabled() {
-		p.CodeStats = codeStatsAnalyzer.GetStats()
-		if codeStatsAnalyzer.IsPerComponentEnabled() {
-			attachComponentCodeStats(p, codeStatsAnalyzer)
-		}
-	}
-
-	// Add path info to metadata
-	if metadata, ok := p.Metadata.(*metadata.ScanMetadata); ok {
-		metadata.ScanPath = absPath
-	}
-
-	// Add merged config properties
-	if len(mergedConfig.Properties) > 0 {
-		if p.Properties == nil {
-			p.Properties = make(map[string]interface{})
-		}
-		for k, v := range mergedConfig.Properties {
-			p.Properties[k] = v
-		}
-	}
-
-	// Add configured techs
-	for _, configTech := range mergedConfig.Techs {
-		techPayload := &types.Payload{
-			ID:     configTech.Tech,
-			Name:   configTech.Tech,
-			Reason: map[string][]string{configTech.Tech: {configTech.Reason}},
-		}
-		p.Childs = append(p.Childs, techPayload)
-	}
-}
-
-// generateMultiScanOutput generates and writes output for multiple scan results
-func generateMultiScanOutput(results []interface{}, logger *slog.Logger) {
-	if len(results) == 0 {
-		logger.Error("No successful scans completed")
-		os.Exit(1)
-	}
-
-	var jsonData []byte
-	var err error
-
-	if len(results) == 1 {
-		// Single result - use existing logic
-		jsonData, err = generateOutput(results[0], settings.Aggregate, settings.PrettyPrint)
-	} else {
-		// Multiple results - wrap in array
-		jsonData, err = generateAggregatedResults(results)
-	}
-
-	if err != nil {
-		logger.Error("Failed to marshal JSON", "error", err)
-		os.Exit(1)
-	}
-
-	// Write output
-	writeOutput(jsonData)
 }
 
 // configureExcludePatterns processes exclude patterns from command flags
@@ -364,15 +197,8 @@ func runScan(cmd *cobra.Command, args []string) {
 	// Load and merge scan configuration
 	scanConfig = loadAndMergeScanConfig(logger)
 
-	// Determine scan paths and handle multi-path or single path
-	scanPaths := determineScanPaths(args, logger)
-	if len(scanPaths) > 1 {
-		runMultiScan(scanPaths, logger)
-		return
-	}
-
-	// Single path scan
-	runSinglePathScan(scanPaths[0], args, cmd, logger)
+	// Single path scan - use command line argument or default to current directory
+	runSinglePathScan("", args, cmd, logger)
 }
 
 // runSinglePathScan executes a single path scan with all the logic
@@ -411,26 +237,6 @@ func loadAndMergeScanConfig(logger *slog.Logger) *config.ScanConfigFile {
 	// Merge config with settings (CLI flags take precedence)
 	scanConfig.MergeWithSettings(settings)
 	return scanConfig
-}
-
-// determineScanPaths returns the paths to scan based on config or args
-func determineScanPaths(args []string, logger *slog.Logger) []string {
-	var scanPaths []string
-	if scanConfig != nil {
-		scanPaths = scanConfig.GetScanPaths()
-	} else {
-		// Use traditional single path from args
-		singlePath, _ := resolveScanPath(args, logger)
-		scanPaths = []string{singlePath}
-	}
-
-	// Validate that we have paths to scan
-	if len(scanPaths) == 0 {
-		logger.Error("No paths to scan specified")
-		os.Exit(1)
-	}
-
-	return scanPaths
 }
 
 func setupScanSettings(logger *slog.Logger) {
@@ -628,28 +434,6 @@ func generateOutput(payload interface{}, aggregateFields string, prettyPrint boo
 		return json.MarshalIndent(result, "", "  ")
 	}
 	return json.Marshal(result)
-}
-
-// generateAggregatedResults generates output for multiple results with aggregation
-func generateAggregatedResults(results []interface{}) ([]byte, error) {
-	if settings.Aggregate != "" {
-		// For aggregated output, we need to aggregate each result individually
-		var aggregatedResults []interface{}
-		for _, result := range results {
-			agg := aggregator.NewAggregator(strings.Split(settings.Aggregate, ","))
-			aggregatedResults = append(aggregatedResults, agg.Aggregate(result.(*types.Payload)))
-		}
-		if settings.PrettyPrint {
-			return json.MarshalIndent(aggregatedResults, "", "  ")
-		}
-		return json.Marshal(aggregatedResults)
-	}
-
-	// Full output
-	if settings.PrettyPrint {
-		return json.MarshalIndent(results, "", "  ")
-	}
-	return json.Marshal(results)
 }
 
 // writeOutput writes the JSON data to file or stdout
