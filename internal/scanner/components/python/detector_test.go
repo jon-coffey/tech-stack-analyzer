@@ -114,8 +114,8 @@ dev = [
 	assert.Equal(t, "/pyproject.toml", payload.Path[0])
 	assert.Contains(t, payload.Tech, "python", "Should have python as primary tech")
 	assert.Contains(t, payload.Techs, "flask", "Should detect flask from dependencies")
-	// License parsing returns raw value, not just the text
-	assert.Contains(t, payload.Licenses, "{text = \"MIT\"}", "Should detect MIT license")
+	// License parsing now returns SPDX-normalized value
+	assert.Contains(t, payload.Licenses, "MIT", "Should detect MIT license")
 
 	// Check dependencies
 	assert.Len(t, payload.Dependencies, 3, "Should have 3 dependencies")
@@ -512,7 +512,7 @@ func TestDetectLicense(t *testing.T) {
 name = "test-app"
 license = {text = "MIT"}
 ]`,
-			expected: "{text = \"MIT\"}", // Returns raw value
+			expected: "MIT", // Now returns SPDX-normalized value
 		},
 		{
 			name: "Apache license",
@@ -542,7 +542,9 @@ license = "MIT"
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			payload := &types.Payload{}
+			payload := &types.Payload{
+				Reason: make(map[string][]string),
+			}
 			detectLicense(tt.content, payload)
 
 			if tt.expected != "" {

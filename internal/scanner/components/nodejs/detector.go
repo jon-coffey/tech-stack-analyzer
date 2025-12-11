@@ -2,8 +2,11 @@ package nodejs
 
 import (
 	"encoding/json"
+	"fmt"
 	"path/filepath"
+	"strings"
 
+	licensenormalizer "github.com/petrarca/tech-stack-analyzer/internal/license"
 	"github.com/petrarca/tech-stack-analyzer/internal/scanner/components"
 	"github.com/petrarca/tech-stack-analyzer/internal/types"
 )
@@ -25,83 +28,147 @@ func (d *Detector) Detect(files []types.File, currentPath, basePath string, prov
 			continue
 		}
 
-		// Read package.json
-		content, err := provider.ReadFile(filepath.Join(currentPath, file.Name))
-		if err != nil {
-			continue
+		payload := d.processPackageJSON(file, currentPath, basePath, provider, depDetector)
+		if payload != nil {
+			payloads = append(payloads, payload)
 		}
-
-		// Parse package.json
-		var packageJSON struct {
-			Name            string            `json:"name"`
-			Dependencies    map[string]string `json:"dependencies"`
-			DevDependencies map[string]string `json:"devDependencies"`
-			License         string            `json:"license"`
-		}
-
-		if err := json.Unmarshal(content, &packageJSON); err != nil {
-			continue
-		}
-
-		// Must have a name
-		if packageJSON.Name == "" {
-			continue
-		}
-
-		// Create payload with specific file path (like TypeScript: folderPath: file.fp)
-		relativeFilePath, _ := filepath.Rel(basePath, filepath.Join(currentPath, file.Name))
-		if relativeFilePath == "." {
-			relativeFilePath = "/"
-		} else {
-			relativeFilePath = "/" + relativeFilePath
-		}
-
-		payload := types.NewPayloadWithPath(packageJSON.Name, relativeFilePath)
-
-		// Set tech field to nodejs
-		payload.AddPrimaryTech("nodejs")
-
-		// Merge dependencies
-		allDeps := make(map[string]string)
-		for name, version := range packageJSON.Dependencies {
-			allDeps[name] = version
-		}
-		for name, version := range packageJSON.DevDependencies {
-			allDeps[name] = version
-		}
-
-		// Match dependencies against rules
-		var depNames []string
-		for name := range allDeps {
-			depNames = append(depNames, name)
-		}
-
-		matchedTechs := depDetector.MatchDependencies(depNames, "npm")
-		for tech, reasons := range matchedTechs {
-			for _, reason := range reasons {
-				payload.AddTech(tech, reason)
-			}
-		}
-
-		// Convert to dependency array
-		for name, version := range allDeps {
-			payload.Dependencies = append(payload.Dependencies, types.Dependency{
-				Type:    "npm",
-				Name:    name,
-				Example: version,
-			})
-		}
-
-		// Add license if present
-		if packageJSON.License != "" {
-			payload.Licenses = append(payload.Licenses, packageJSON.License)
-		}
-
-		// Add to payloads array instead of returning immediately
-		payloads = append(payloads, payload)
 	}
 
 	return payloads
+}
+
+// processPackageJSON processes a single package.json file and returns a payload
+func (d *Detector) processPackageJSON(file types.File, currentPath, basePath string, provider types.Provider, depDetector components.DependencyDetector) *types.Payload {
+	// Read package.json
+	content, err := provider.ReadFile(filepath.Join(currentPath, file.Name))
+	if err != nil {
+		return nil
+	}
+
+	// Parse package.json
+	var packageJSON struct {
+		Name            string            `json:"name"`
+		Dependencies    map[string]string `json:"dependencies"`
+		DevDependencies map[string]string `json:"devDependencies"`
+		License         string            `json:"license"`
+	}
+
+	if err := json.Unmarshal(content, &packageJSON); err != nil {
+		return nil
+	}
+
+	// Must have a name
+	if packageJSON.Name == "" {
+		return nil
+	}
+
+	// Create payload with specific file path
+	relativeFilePath, _ := filepath.Rel(basePath, filepath.Join(currentPath, file.Name))
+	if relativeFilePath == "." {
+		relativeFilePath = "/"
+	} else {
+		relativeFilePath = "/" + relativeFilePath
+	}
+
+	payload := types.NewPayloadWithPath(packageJSON.Name, relativeFilePath)
+	payload.AddPrimaryTech("nodejs")
+
+	// Process dependencies
+	d.processDependencies(&packageJSON, payload, depDetector)
+
+	// Process license
+	d.processLicense(&packageJSON, payload)
+
+	return payload
+}
+
+// processDependencies handles dependency processing for package.json
+func (d *Detector) processDependencies(packageJSON *struct {
+	Name            string            `json:"name"`
+	Dependencies    map[string]string `json:"dependencies"`
+	DevDependencies map[string]string `json:"devDependencies"`
+	License         string            `json:"license"`
+}, payload *types.Payload, depDetector components.DependencyDetector) {
+	// Merge dependencies
+	allDeps := make(map[string]string)
+	for name, version := range packageJSON.Dependencies {
+		allDeps[name] = version
+	}
+	for name, version := range packageJSON.DevDependencies {
+		allDeps[name] = version
+	}
+
+	// Match dependencies against rules
+	var depNames []string
+	for name := range allDeps {
+		depNames = append(depNames, name)
+	}
+
+	matchedTechs := depDetector.MatchDependencies(depNames, "npm")
+	for tech, reasons := range matchedTechs {
+		for _, reason := range reasons {
+			payload.AddTech(tech, reason)
+		}
+	}
+
+	// Convert to dependency array
+	for name, version := range allDeps {
+		payload.Dependencies = append(payload.Dependencies, types.Dependency{
+			Type:    "npm",
+			Name:    name,
+			Example: version,
+		})
+	}
+}
+
+// processLicense handles license processing for package.json
+func (d *Detector) processLicense(packageJSON *struct {
+	Name            string            `json:"name"`
+	Dependencies    map[string]string `json:"dependencies"`
+	DevDependencies map[string]string `json:"devDependencies"`
+	License         string            `json:"license"`
+}, payload *types.Payload) {
+	if packageJSON.License == "" {
+		return
+	}
+
+	// Use the shared license normalizer
+	normalizer := licensenormalizer.NewNormalizer()
+
+	// Try to parse as license expression first (e.g., "MIT OR Apache-2.0")
+	licenses := normalizer.ParseLicenseExpression(packageJSON.License)
+
+	if len(licenses) > 0 {
+		// Add traceability reason for license expression parsing
+		if len(licenses) == 1 {
+			// Single license
+			if licenses[0] == packageJSON.License {
+				payload.AddReason(fmt.Sprintf("license detected: %s (from package.json)", licenses[0]))
+			} else {
+				payload.AddReason(fmt.Sprintf("license normalized: %q -> %s (from package.json, SPDX format)", packageJSON.License, licenses[0]))
+			}
+		} else {
+			// License expression was parsed into multiple licenses
+			payload.AddReason(fmt.Sprintf("license expression parsed: %q -> [%s] (from package.json, SPDX format)", packageJSON.License, strings.Join(licenses, ", ")))
+		}
+
+		// Add all detected licenses, avoiding duplicates
+		for _, license := range licenses {
+			exists := false
+			for _, existing := range payload.Licenses {
+				if existing == license {
+					exists = true
+					break
+				}
+			}
+			if !exists {
+				payload.Licenses = append(payload.Licenses, license)
+			}
+		}
+	} else {
+		// License was invalid or empty after processing
+		payload.AddReason(fmt.Sprintf("license ignored: %q (invalid expression from package.json)", packageJSON.License))
+	}
 }
 
 func init() {

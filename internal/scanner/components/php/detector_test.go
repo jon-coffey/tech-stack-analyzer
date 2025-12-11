@@ -350,7 +350,7 @@ func TestDetectLicense(t *testing.T) {
 		{
 			name:     "BSD",
 			license:  "bsd",
-			expected: "BSD",
+			expected: "BSD-3-Clause",
 		},
 		{
 			name:     "ISC",

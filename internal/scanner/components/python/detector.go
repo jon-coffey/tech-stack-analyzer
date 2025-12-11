@@ -1,10 +1,12 @@
 package python
 
 import (
+	"fmt"
 	"path/filepath"
 	"regexp"
 	"strings"
 
+	"github.com/petrarca/tech-stack-analyzer/internal/license"
 	"github.com/petrarca/tech-stack-analyzer/internal/scanner/components"
 	"github.com/petrarca/tech-stack-analyzer/internal/types"
 )
@@ -296,35 +298,81 @@ func extractVersion(valueStr string) string {
 	return "latest"
 }
 
-// detectLicense detects license from pyproject.toml
+// detectLicense detects license from pyproject.toml using SPDX-compliant normalization
 func detectLicense(content string, payload *types.Payload) {
+	// Use the shared license normalizer
+	normalizer := license.NewNormalizer()
+
 	lines := strings.Split(content, "\n")
 	inProjectSection := false
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 
-		if line == "[project]" {
-			inProjectSection = true
-			continue
-		}
-
-		if strings.HasPrefix(line, "[") && line != "[project]" {
-			inProjectSection = false
-			continue
-		}
+		inProjectSection = updateSectionStatus(line, inProjectSection)
 
 		if inProjectSection && strings.HasPrefix(line, "license") {
-			parts := strings.SplitN(line, "=", 2)
-			if len(parts) == 2 {
-				license := strings.TrimSpace(parts[1])
-				license = strings.Trim(license, `"'`)
-				if license != "" {
-					payload.Licenses = append(payload.Licenses, license)
-				}
-			}
+			processLicenseLine(line, payload, normalizer)
 		}
 	}
+}
+
+// updateSectionStatus tracks whether we're in the [project] section
+func updateSectionStatus(line string, inProjectSection bool) bool {
+	if line == "[project]" {
+		return true
+	}
+	if strings.HasPrefix(line, "[") && line != "[project]" {
+		return false
+	}
+	return inProjectSection
+}
+
+// processLicenseLine processes a single license line from pyproject.toml
+func processLicenseLine(line string, payload *types.Payload, normalizer *license.Normalizer) {
+	parts := strings.SplitN(line, "=", 2)
+	if len(parts) != 2 {
+		return
+	}
+
+	license := strings.TrimSpace(parts[1])
+	normalizedLicense := normalizer.ParseTOMLLicense(license)
+
+	if normalizedLicense != "" {
+		addLicenseWithReason(payload, license, normalizedLicense, "pyproject.toml")
+	} else {
+		payload.AddReason(fmt.Sprintf("license ignored: %q (invalid TOML format from pyproject.toml)", license))
+	}
+}
+
+// addLicenseWithReason adds a normalized license with appropriate traceability reason
+func addLicenseWithReason(payload *types.Payload, originalLicense, normalizedLicense, source string) {
+	// Add traceability reason for license detection
+	if normalizedLicense == originalLicense {
+		// License was already in correct format (no TOML parsing needed)
+		payload.AddReason(fmt.Sprintf("license detected: %s (from %s)", normalizedLicense, source))
+	} else if strings.Contains(originalLicense, "{text =") || strings.Contains(originalLicense, "{file =") {
+		// TOML object format was parsed
+		payload.AddReason(fmt.Sprintf("license parsed from TOML: %q -> %s (from %s, SPDX format)", originalLicense, normalizedLicense, source))
+	} else {
+		// License was normalized to SPDX format
+		payload.AddReason(fmt.Sprintf("license normalized: %q -> %s (from %s, SPDX format)", originalLicense, normalizedLicense, source))
+	}
+
+	// Avoid duplicates
+	if !licenseExists(payload.Licenses, normalizedLicense) {
+		payload.Licenses = append(payload.Licenses, normalizedLicense)
+	}
+}
+
+// licenseExists checks if a license already exists in the payload
+func licenseExists(licenses []string, license string) bool {
+	for _, existing := range licenses {
+		if existing == license {
+			return true
+		}
+	}
+	return false
 }
 
 func init() {

@@ -1,8 +1,10 @@
 package rust
 
 import (
+	"fmt"
 	"path/filepath"
 
+	licensenormalizer "github.com/petrarca/tech-stack-analyzer/internal/license"
 	"github.com/petrarca/tech-stack-analyzer/internal/scanner/components"
 	"github.com/petrarca/tech-stack-analyzer/internal/scanner/parsers"
 	"github.com/petrarca/tech-stack-analyzer/internal/types"
@@ -82,36 +84,38 @@ func (d *Detector) detectCargoToml(file types.File, currentPath, basePath string
 		payload.Dependencies = dependencies
 	}
 
-	// Add license if present
+	// Add license if present with traceability reasons
 	if license != "" {
-		// Try to detect license format
+		// Try to detect license format with SPDX normalization
 		detectedLicense := d.detectLicense(license)
 		if detectedLicense != "" {
+			// Add traceability reason for license detection
+			if detectedLicense == license {
+				// License was already in correct format
+				payload.AddReason(fmt.Sprintf("license detected: %s (from Cargo.toml)", detectedLicense))
+			} else {
+				// License was normalized to SPDX format
+				payload.AddReason(fmt.Sprintf("license normalized: %q -> %s (from Cargo.toml, SPDX format)", license, detectedLicense))
+			}
 			payload.Licenses = append(payload.Licenses, detectedLicense)
+		} else {
+			// License was invalid or empty after processing
+			payload.AddReason(fmt.Sprintf("license ignored: %q (invalid format from Cargo.toml)", license))
 		}
 	}
 
 	return payload
 }
 
-// detectLicense attempts to normalize license strings
+// detectLicense normalizes license strings using the shared SPDX-compliant normalizer
 func (d *Detector) detectLicense(license string) string {
-	// Handle different license formats
-	switch license {
-	case "MIT":
-		return "MIT"
-	case "Apache-2.0":
-		return "Apache-2.0"
-	case "GPL-3.0":
-		return "GPL-3.0"
-	case "BSD-3-Clause":
-		return "BSD-3-Clause"
-	case "ISC":
-		return "ISC"
-	default:
-		// Return as-is for unknown licenses
-		return license
+	if license == "" {
+		return ""
 	}
+
+	// Use the shared license normalizer
+	normalizer := licensenormalizer.NewNormalizer()
+	return normalizer.Normalize(license)
 }
 
 func init() {

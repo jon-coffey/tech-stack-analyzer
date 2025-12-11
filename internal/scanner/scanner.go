@@ -12,6 +12,7 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/petrarca/tech-stack-analyzer/internal/config"
 	"github.com/petrarca/tech-stack-analyzer/internal/git"
+	"github.com/petrarca/tech-stack-analyzer/internal/license"
 	"github.com/petrarca/tech-stack-analyzer/internal/metadata"
 	"github.com/petrarca/tech-stack-analyzer/internal/progress"
 	"github.com/petrarca/tech-stack-analyzer/internal/provider"
@@ -46,7 +47,7 @@ type Scanner struct {
 	depDetector     *DependencyDetector
 	compDetector    *ComponentDetector
 	dotenvDetector  *parsers.DotenvDetector
-	licenseDetector *LicenseDetector
+	licenseDetector *license.LicenseDetector
 	langDetector    *LanguageDetector
 	contentMatcher  *matchers.ContentMatcherRegistry
 	excludePatterns []string
@@ -175,7 +176,7 @@ type scannerComponents struct {
 	depDetector     *DependencyDetector
 	compDetector    *ComponentDetector
 	dotenvDetector  *parsers.DotenvDetector
-	licenseDetector *LicenseDetector
+	licenseDetector *license.LicenseDetector
 	contentMatcher  *matchers.ContentMatcherRegistry
 }
 
@@ -198,7 +199,7 @@ func initializeScannerComponents(provider types.Provider, path string) (*scanner
 	depDetector := NewDependencyDetector(loadedRules)
 	compDetector := NewComponentDetector(depDetector, provider, loadedRules)
 	dotenvDetector := parsers.NewDotenvDetector(provider, loadedRules)
-	licenseDetector := NewLicenseDetector()
+	licenseDetector := license.NewLicenseDetector()
 
 	// Build matchers from rules (like TypeScript's loadAllRules)
 	matchers.BuildFileMatchersFromRules(loadedRules)
