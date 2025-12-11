@@ -112,7 +112,15 @@ tokio-test = "0.4"
 	assert.Contains(t, payload.Techs, "cargo", "Should detect cargo from Cargo.toml")
 	assert.Contains(t, payload.Techs, "tokio", "Should detect tokio from dependencies")
 	assert.Contains(t, payload.Techs, "serde", "Should detect serde from dependencies")
-	assert.Contains(t, payload.Licenses, "MIT", "Should detect MIT license")
+	// Check if any license object has the expected license name
+	found := false
+	for _, license := range payload.Licenses {
+		if license.LicenseName == "MIT" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "Should detect MIT license")
 
 	// Check dependencies - should include both dependencies and dev-dependencies
 	assert.Len(t, payload.Dependencies, 4, "Should have 4 dependencies (3 deps + 1 dev-dep)")
@@ -475,7 +483,15 @@ version = "0.1.0"
 
 			payload := results[0]
 			if tt.expectedLicense != "" {
-				assert.Contains(t, payload.Licenses, tt.expectedLicense, "Should detect normalized license")
+				// Check if any license object has the expected license name
+				found := false
+				for _, license := range payload.Licenses {
+					if license.LicenseName == tt.expectedLicense {
+						found = true
+						break
+					}
+				}
+				assert.True(t, found, "Should detect normalized license")
 			} else {
 				assert.Empty(t, payload.Licenses, "Should have no license")
 			}

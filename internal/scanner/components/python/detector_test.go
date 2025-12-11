@@ -115,7 +115,15 @@ dev = [
 	assert.Contains(t, payload.Tech, "python", "Should have python as primary tech")
 	assert.Contains(t, payload.Techs, "flask", "Should detect flask from dependencies")
 	// License parsing now returns SPDX-normalized value
-	assert.Contains(t, payload.Licenses, "MIT", "Should detect MIT license")
+	// Check if any license object has the expected license name
+	found := false
+	for _, license := range payload.Licenses {
+		if license.LicenseName == "MIT" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "Should detect MIT license")
 
 	// Check dependencies
 	assert.Len(t, payload.Dependencies, 3, "Should have 3 dependencies")
@@ -548,7 +556,15 @@ license = "MIT"
 			detectLicense(tt.content, payload)
 
 			if tt.expected != "" {
-				assert.Contains(t, payload.Licenses, tt.expected, "Should detect license")
+				// Check if any license object has the expected license name
+				found := false
+				for _, license := range payload.Licenses {
+					if license.LicenseName == tt.expected {
+						found = true
+						break
+					}
+				}
+				assert.True(t, found, "Should detect license")
 			} else {
 				assert.Empty(t, payload.Licenses, "Should not detect license")
 			}

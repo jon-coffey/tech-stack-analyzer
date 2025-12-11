@@ -2,6 +2,7 @@ package license
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/go-enry/go-license-detector/v4/licensedb"
 	"github.com/go-enry/go-license-detector/v4/licensedb/filer"
@@ -74,7 +75,7 @@ func (d *LicenseDetector) AddLicensesToPayload(payload *types.Payload, dirPath s
 				LicenseName:   match.License,
 				DetectionType: "file_based",
 				SourceFile:    match.File,
-				Confidence:    float64(match.Confidence),
+				Confidence:    math.Round(float64(match.Confidence)*100) / 100,
 			}
 
 			payload.Licenses = append(payload.Licenses, license)

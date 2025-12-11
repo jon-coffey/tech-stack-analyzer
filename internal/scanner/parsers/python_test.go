@@ -360,7 +360,15 @@ license = "Unknown-License"
 			parser.DetectLicense(tt.content, payload)
 
 			if tt.expectedLicense != "" {
-				assert.Contains(t, payload.Licenses, tt.expectedLicense, "Should detect license: %s", tt.expectedLicense)
+				// Check if any license object has the expected license name
+				found := false
+				for _, license := range payload.Licenses {
+					if license.LicenseName == tt.expectedLicense {
+						found = true
+						break
+					}
+				}
+				assert.True(t, found, "Should detect license: %s", tt.expectedLicense)
 			} else {
 				assert.Empty(t, payload.Licenses, "Should not detect any license")
 			}
@@ -489,7 +497,15 @@ func TestAddLicenseIfMatch(t *testing.T) {
 			assert.Equal(t, tt.shouldMatch, result, "Should return correct match result")
 
 			if tt.expectedLicense != "" {
-				assert.Contains(t, payload.Licenses, tt.expectedLicense, "Should add license: %s", tt.expectedLicense)
+				// Check if any license object has the expected license name
+				found := false
+				for _, license := range payload.Licenses {
+					if license.LicenseName == tt.expectedLicense {
+						found = true
+						break
+					}
+				}
+				assert.True(t, found, "Should add license: %s", tt.expectedLicense)
 			} else {
 				assert.Empty(t, payload.Licenses, "Should not add any license")
 			}
@@ -523,7 +539,16 @@ dependencies = [
 	// Detect license
 	payload := types.NewPayload("test", []string{})
 	parser.DetectLicense(pyprojectContent, payload)
-	assert.Contains(t, payload.Licenses, "MIT", "Should detect MIT license")
+
+	// Check if any license object has the expected license name
+	found := false
+	for _, license := range payload.Licenses {
+		if license.LicenseName == "MIT" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "Should detect MIT license")
 
 	// Verify dependency objects
 	depMap := make(map[string]types.Dependency)

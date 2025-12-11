@@ -158,7 +158,15 @@ func TestDetector_Detect_PackageJsonWithLicense(t *testing.T) {
 
 	payload := results[0]
 	assert.Equal(t, "licensed-app", payload.Name)
-	assert.Contains(t, payload.Licenses, "MIT", "Should detect MIT license")
+	// Check if any license object has the expected license name
+	found := false
+	for _, license := range payload.Licenses {
+		if license.LicenseName == "MIT" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "Should detect MIT license")
 }
 
 func TestDetector_Detect_PackageJsonWithoutName(t *testing.T) {

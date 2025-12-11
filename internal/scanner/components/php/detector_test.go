@@ -110,7 +110,15 @@ func TestDetector_Detect_BasicComposer(t *testing.T) {
 	assert.Contains(t, payload.Tech, "php", "Should have php as primary tech")
 	assert.Contains(t, payload.Techs, "phpcomposer", "Should detect phpcomposer from composer.json")
 	assert.Contains(t, payload.Techs, "laravel/framework", "Should detect laravel from dependencies")
-	assert.Contains(t, payload.Licenses, "MIT", "Should detect MIT license")
+	// Check if any license object has the expected license name
+	found := false
+	for _, license := range payload.Licenses {
+		if license.LicenseName == "MIT" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "Should detect MIT license")
 
 	// Check dependencies - should include both require and require-dev
 	assert.Len(t, payload.Dependencies, 5, "Should have 5 dependencies (3 require + 2 require-dev)")
@@ -450,7 +458,15 @@ func TestDetector_Detect_DifferentLicenseFormats(t *testing.T) {
 
 			payload := results[0]
 			if tt.expectedLicense != "" {
-				assert.Contains(t, payload.Licenses, tt.expectedLicense, "Should detect normalized license")
+				// Check if any license object has the expected license name
+				found := false
+				for _, license := range payload.Licenses {
+					if license.LicenseName == tt.expectedLicense {
+						found = true
+						break
+					}
+				}
+				assert.True(t, found, "Should detect normalized license")
 			} else {
 				assert.Empty(t, payload.Licenses, "Should have no license")
 			}
