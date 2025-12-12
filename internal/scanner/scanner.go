@@ -57,6 +57,7 @@ type Scanner struct {
 	gitCache        map[string]*git.GitInfo // Cache git info by repo root path
 	gitRootCache    map[string]string       // Cache path -> repo root mapping
 	rootID          string                  // Override root ID for deterministic scans
+	config          *config.ScanConfig      // Merged configuration for metadata properties
 }
 
 // CodeStatsAnalyzer interface for code statistics collection
@@ -97,16 +98,16 @@ func NewScannerWithExcludes(path string, excludePatterns []string, verbose bool,
 
 // NewScannerWithOptions creates a new scanner with all options including code stats
 func NewScannerWithOptions(path string, excludePatterns []string, verbose bool, useTreeView bool, traceTimings bool, traceRules bool, codeStats CodeStatsAnalyzer) (*Scanner, error) {
-	return NewScannerWithOptionsAndLogger(path, excludePatterns, verbose, useTreeView, traceTimings, traceRules, codeStats, nil, "")
+	return NewScannerWithOptionsAndLogger(path, excludePatterns, verbose, useTreeView, traceTimings, traceRules, codeStats, nil, "", nil)
 }
 
 // NewScannerWithOptionsAndRootID creates a new scanner with root ID override
 func NewScannerWithOptionsAndRootID(path string, excludePatterns []string, verbose bool, useTreeView bool, traceTimings bool, traceRules bool, codeStats CodeStatsAnalyzer, rootID string) (*Scanner, error) {
-	return NewScannerWithOptionsAndLogger(path, excludePatterns, verbose, useTreeView, traceTimings, traceRules, codeStats, nil, rootID)
+	return NewScannerWithOptionsAndLogger(path, excludePatterns, verbose, useTreeView, traceTimings, traceRules, codeStats, nil, rootID, nil)
 }
 
 // NewScannerWithOptionsAndLogger creates a new scanner with all options including logger
-func NewScannerWithOptionsAndLogger(path string, excludePatterns []string, verbose bool, useTreeView bool, traceTimings bool, traceRules bool, codeStats CodeStatsAnalyzer, logger *slog.Logger, rootID string) (*Scanner, error) {
+func NewScannerWithOptionsAndLogger(path string, excludePatterns []string, verbose bool, useTreeView bool, traceTimings bool, traceRules bool, codeStats CodeStatsAnalyzer, logger *slog.Logger, rootID string, mergedConfig *config.ScanConfig) (*Scanner, error) {
 	// Create provider for the target path (like TypeScript's FSProvider)
 	provider := provider.NewFSProvider(path)
 
@@ -133,8 +134,19 @@ func NewScannerWithOptionsAndLogger(path string, excludePatterns []string, verbo
 
 	// Load config excludes to pass to gitignore stack
 	var configExcludes []string
-	cfg, err := config.LoadConfig(path)
-	if err == nil && len(cfg.Exclude) > 0 {
+	var cfg *config.ScanConfig
+
+	// Use merged config if provided, otherwise load project config
+	if mergedConfig != nil {
+		cfg = mergedConfig
+	} else {
+		cfg, err = config.LoadConfig(path)
+		if err != nil {
+			cfg = &config.ScanConfig{} // Use empty config if load fails
+		}
+	}
+
+	if len(cfg.Exclude) > 0 {
 		configExcludes = cfg.Exclude
 	}
 
@@ -167,6 +179,7 @@ func NewScannerWithOptionsAndLogger(path string, excludePatterns []string, verbo
 		gitCache:        make(map[string]*git.GitInfo),
 		gitRootCache:    make(map[string]string),
 		rootID:          rootID,
+		config:          cfg,
 	}, nil
 }
 
@@ -227,10 +240,10 @@ func (s *Scanner) Scan() (*types.Payload, error) {
 	// Report scan start
 	s.progress.ScanStart(basePath, s.excludePatterns)
 
-	// Load configuration from .stack-analyzer.yml if it exists
-	cfg, err := config.LoadConfig(basePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load config: %w", err)
+	// Use the scanner's stored config (already merged with project config)
+	cfg := s.config
+	if cfg == nil {
+		cfg = &config.ScanConfig{} // Use empty config if not set
 	}
 
 	// Create scan metadata
@@ -250,7 +263,7 @@ func (s *Scanner) Scan() (*types.Payload, error) {
 	payload.Git = git.GetGitInfo(basePath)
 
 	// Start recursion from base path (like TypeScript's payload.recurse(provider, provider.basePath))
-	err = s.recurse(payload, basePath)
+	err := s.recurse(payload, basePath)
 	if err != nil {
 		return nil, err
 	}

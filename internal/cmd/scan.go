@@ -320,7 +320,7 @@ func runScanner(absPath string, isFile bool, mergedConfig *config.ScanConfig, lo
 	// Create code stats analyzer (enabled by default, disabled with --no-code-stats)
 	codeStatsAnalyzer := codestats.NewAnalyzerWithPerComponent(!settings.NoCodeStats, settings.CodeStatsPerComponent)
 
-	s, err := scanner.NewScannerWithOptionsAndLogger(scannerPath, settings.ExcludePatterns, settings.Verbose, settings.Debug, settings.TraceTimings, settings.TraceRules, codeStatsAnalyzer, logger, settings.RootID)
+	s, err := scanner.NewScannerWithOptionsAndLogger(scannerPath, settings.ExcludePatterns, settings.Verbose, settings.Debug, settings.TraceTimings, settings.TraceRules, codeStatsAnalyzer, logger, settings.RootID, mergedConfig)
 	if err != nil {
 		logger.Error("Failed to create scanner", "error", err)
 		os.Exit(1)

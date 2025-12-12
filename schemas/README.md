@@ -1,15 +1,43 @@
 # Tech Stack Analyzer JSON Schemas
 
-This directory contains JSON schemas for validating Tech Stack Analyzer output files.
+This directory contains JSON schemas for validating Tech Stack Analyzer output and configuration files.
 
 ## Files
 
 - `stack-analyzer-output.json` - Main schema supporting both full hierarchical and aggregated output formats
-- `examples/` - **Real output examples from our tech-stack-analyzer project**
+- `stack-analyzer-config.json` - Configuration schema for scan-config.yml and inline JSON configurations
+- `examples/` - **Real examples from our tech-stack-analyzer project**
   - `full.json` - Actual full hierarchical scan of our project (971 files, 8 technologies)
   - `aggregated.json` - Actual aggregated scan of our project showing Go, Git, CI/CD tools
+  - `scan-config.json` - Example configuration file with all available options
 
-## Schema Usage
+## Configuration Schema Usage
+
+### Validate Configuration Files
+Use the schema to validate your `scan-config.yml` or inline JSON:
+```bash
+# Validate YAML config
+ajv validate -s stack-analyzer-config.json -d scan-config.yml
+
+# Validate inline JSON
+stack-analyzer scan --config '{"$schema": "stack-analyzer-config.json", "properties": {...}}' /path/to/project
+```
+
+### Configuration Structure
+The schema validates:
+- **properties**: Custom metadata for scan output (max 50 items)
+- **exclude**: File/directory exclusion patterns (max 1000 items, no path traversal)
+- **techs**: Additional technologies to include (max 100 items)
+- **scan**: CLI options matching --flags (output_file, debug, aggregate, etc.)
+
+### Security Constraints
+The schema enforces security limits:
+- No absolute paths in output_file (prevents file system access)
+- No path traversal patterns in exclude (prevents `../` attacks)
+- Size limits on arrays and objects (prevents DoS attacks)
+- Pattern validation for technology names and properties
+
+## Output Schema Usage
 
 ### Generate Examples from Project
 Use the Taskfile to regenerate examples from our actual project:

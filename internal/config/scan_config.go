@@ -31,32 +31,17 @@ type ScanOptions struct {
 
 // ScanConfigFile represents the external scan configuration file
 type ScanConfigFile struct {
-	Scan ScanConfigSection `yaml:"scan" json:"scan"`
-}
-
-// ScanConfigSection contains all scan configuration options
-type ScanConfigSection struct {
-	// Output configuration (legacy field names for backward compatibility)
-	Output OutputConfig `yaml:"output,omitempty" json:"output,omitempty"`
-
-	// Metadata (identical to .stack-analyzer.yml)
+	// Root-level metadata (consistent with .stack-analyzer.yml)
 	Properties map[string]interface{} `yaml:"properties,omitempty" json:"properties,omitempty"`
 
-	// Excludes (identical to .stack-analyzer.yml)
+	// Root-level excludes (consistent with .stack-analyzer.yml)
 	Exclude []string `yaml:"exclude,omitempty" json:"exclude,omitempty"`
 
-	// Additional technologies
+	// Root-level additional technologies (consistent with .stack-analyzer.yml)
 	Techs []ConfigTech `yaml:"techs,omitempty" json:"techs,omitempty"`
 
-	// Scanner options (unified structure)
-	Options ScanOptions `yaml:"options,omitempty" json:"options,omitempty"`
-}
-
-// OutputConfig defines output settings (legacy for backward compatibility)
-type OutputConfig struct {
-	File      string `yaml:"file,omitempty" json:"file,omitempty"`
-	Pretty    bool   `yaml:"pretty,omitempty" json:"pretty,omitempty"`
-	Aggregate string `yaml:"aggregate,omitempty" json:"aggregate,omitempty"`
+	// Scan section with flat CLI options (matching CLI arguments)
+	Scan ScanOptions `yaml:"scan,omitempty" json:"scan,omitempty"`
 }
 
 // LoadScanConfig loads scan configuration from file path or inline JSON
@@ -110,72 +95,12 @@ func (c *ScanConfigFile) MergeWithSettings(settings *Settings) {
 		return
 	}
 
-	// Create unified options from config
-	configOpts := c.getUnifiedOptions()
+	// Automatically merge scan section options using reflection
+	mergeStructFields(c.Scan, settings)
 
-	// Merge using reflection to avoid manual field mapping
-	mergeOptions(configOpts, settings)
-}
-
-// getUnifiedOptions creates unified ScanOptions from config
-func (c *ScanConfigFile) getUnifiedOptions() *ScanOptions {
-	opts := &ScanOptions{}
-
-	// Copy from options section
-	*opts = c.Scan.Options
-
-	// Handle legacy output config for backward compatibility
-	if c.Scan.Output.File != "" {
-		opts.OutputFile = c.Scan.Output.File
-	}
-	if c.Scan.Output.Pretty {
-		opts.PrettyPrint = c.Scan.Output.Pretty
-	}
-	if c.Scan.Output.Aggregate != "" {
-		opts.Aggregate = c.Scan.Output.Aggregate
-	}
-
-	// Copy excludes to options
-	if len(c.Scan.Exclude) > 0 {
-		opts.ExcludePatterns = c.Scan.Exclude
-	}
-
-	return opts
-}
-
-// mergeOptions merges config options into settings using reflection
-func mergeOptions(configOpts *ScanOptions, settings *Settings) {
-	configValue := reflect.ValueOf(configOpts).Elem()
-	settingsValue := reflect.ValueOf(settings).Elem()
-	configType := configValue.Type()
-
-	for i := 0; i < configValue.NumField(); i++ {
-		field := configValue.Field(i)
-		fieldType := configType.Field(i)
-		settingsField := settingsValue.FieldByName(fieldType.Name)
-
-		if !settingsField.IsValid() || !settingsField.CanSet() {
-			continue
-		}
-
-		// Only merge if setting is at default value and config has non-default value
-		if isDefaultValue(settingsField) && !isDefaultValue(field) {
-			settingsField.Set(field)
-		}
-	}
-}
-
-// isDefaultValue checks if a field has its default/zero value
-func isDefaultValue(field reflect.Value) bool {
-	switch field.Kind() {
-	case reflect.String:
-		return field.String() == ""
-	case reflect.Bool:
-		return !field.Bool()
-	case reflect.Slice:
-		return field.Len() == 0
-	default:
-		return field.IsZero()
+	// Merge root-level excludes manually (different field names)
+	if len(c.Exclude) > 0 {
+		settings.ExcludePatterns = c.Exclude
 	}
 }
 
@@ -193,17 +118,17 @@ func (c *ScanConfigFile) GetMergedConfig(projectConfig *ScanConfig) *ScanConfig 
 		Techs:      make([]ConfigTech, 0),
 	}
 
-	// Copy from scan config first
-	if c.Scan.Properties != nil {
-		for k, v := range c.Scan.Properties {
+	// Copy from root-level scan config (new flattened structure)
+	if c.Properties != nil {
+		for k, v := range c.Properties {
 			merged.Properties[k] = v
 		}
 	}
-	if len(c.Scan.Exclude) > 0 {
-		merged.Exclude = append(merged.Exclude, c.Scan.Exclude...)
+	if len(c.Exclude) > 0 {
+		merged.Exclude = append(merged.Exclude, c.Exclude...)
 	}
-	if len(c.Scan.Techs) > 0 {
-		merged.Techs = append(merged.Techs, c.Scan.Techs...)
+	if len(c.Techs) > 0 {
+		merged.Techs = append(merged.Techs, c.Techs...)
 	}
 
 	// Then merge with project config (project config takes precedence)
@@ -222,4 +147,55 @@ func (c *ScanConfigFile) GetMergedConfig(projectConfig *ScanConfig) *ScanConfig 
 	}
 
 	return merged
+}
+
+// mergeStructFields automatically merges fields from source to target using reflection
+// Only merges if target field is at default value and source has non-default value
+func mergeStructFields(source, target interface{}) {
+	sourceValue := reflect.ValueOf(source)
+	targetValue := reflect.ValueOf(target)
+
+	if sourceValue.Kind() == reflect.Ptr {
+		sourceValue = sourceValue.Elem()
+	}
+	if targetValue.Kind() == reflect.Ptr {
+		targetValue = targetValue.Elem()
+	}
+
+	if sourceValue.Kind() != reflect.Struct || targetValue.Kind() != reflect.Struct {
+		return
+	}
+
+	sourceType := sourceValue.Type()
+
+	for i := 0; i < sourceValue.NumField(); i++ {
+		field := sourceValue.Field(i)
+		fieldType := sourceType.Field(i)
+		targetField := targetValue.FieldByName(fieldType.Name)
+
+		if !targetField.IsValid() || !targetField.CanSet() {
+			continue
+		}
+
+		// Only merge if target is at default value and source has non-default value
+		if isDefaultValue(targetField) && !isDefaultValue(field) {
+			targetField.Set(field)
+		}
+	}
+}
+
+// isDefaultValue checks if a field has its default/zero value
+func isDefaultValue(field reflect.Value) bool {
+	switch field.Kind() {
+	case reflect.String:
+		return field.String() == ""
+	case reflect.Bool:
+		return !field.Bool()
+	case reflect.Slice:
+		return field.Len() == 0
+	case reflect.Interface:
+		return field.IsNil()
+	default:
+		return field.IsZero()
+	}
 }

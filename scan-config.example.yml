@@ -8,66 +8,65 @@
 # 4. Environment variables - Provide defaults for unset values
 # 5. Built-in defaults - Used when nothing else is specified
 
+# Custom properties added to metadata.properties in scan output
+# Use this to document project context, ownership, or deployment information
+# (Consistent with .stack-analyzer.yml)
+properties:
+  product: "My Product Name"
+  team: "Platform Engineering"
+  owner: "engineering@company.com"
+  environment: "production"
+  version: "1.2.3"
+  # Add any custom key-value pairs relevant to your project
+
+# Files and directories to exclude from scanning
+# Supports glob patterns (**, *, ?)
+# (Consistent with .stack-analyzer.yml, matches --exclude flag)
+exclude:
+  # Directories
+  - "node_modules"
+  - "vendor"
+  - "dist"
+  - "build"
+  - ".git"
+  
+  # File patterns
+  - "*.log"
+  - "*.tmp"
+  
+  # Glob patterns (relative to project root)
+  - "**/__tests__/**"
+  - "**/*.test.js"
+  - "**/test/**"
+
+# Technologies to add to the scan results (even if not auto-detected)
+# Useful for documenting external dependencies, deployment targets, or SaaS services
+# (Consistent with .stack-analyzer.yml)
+techs:
+  - tech: "aws"
+    reason: "Deployed on AWS ECS"
+  - tech: "datadog"
+    reason: "Monitoring via Datadog"
+  - tech: "auth0"
+    reason: "Authentication provider"
+  - tech: "stripe"
+    reason: "Payment processing"
+
+# Scan configuration (flat CLI options matching --flags)
 scan:
-  # Output configuration
-  output:
-    file: "results.json"           # Output file path, or "-" for stdout
-    pretty: true                   # Pretty print JSON output
-    aggregate: "techs,languages"   # Aggregate fields: tech,techs,reason,languages,licenses,dependencies,git,all
-  
-  # Custom properties added to metadata.properties in scan output
-  # Use this to document project context, ownership, or deployment information
-  properties:
-    product: "My Product Name"
-    team: "Platform Engineering"
-    owner: "engineering@company.com"
-    environment: "production"
-    version: "1.2.3"
-    # Add any custom key-value pairs relevant to your project
-  
-  # Files and directories to exclude from scanning
-  # Supports glob patterns (**, *, ?)
-  exclude:
-    # Directories
-    - "node_modules"
-    - "vendor"
-    - "dist"
-    - "build"
-    - ".git"
-    
-    # File patterns
-    - "*.log"
-    - "*.tmp"
-    
-    # Glob patterns (relative to project root)
-    - "**/__tests__/**"
-    - "**/*.test.js"
-    - "**/test/**"
-  
-  # Technologies to add to the scan results (even if not auto-detected)
-  # Useful for documenting external dependencies, deployment targets, or SaaS services
-  techs:
-    - tech: "aws"
-      reason: "Deployed on AWS ECS"
-    - tech: "datadog"
-      reason: "Monitoring via Datadog"
-    - tech: "auth0"
-      reason: "Authentication provider"
-    - tech: "stripe"
-      reason: "Payment processing"
-  
-  # Scanner options (behavior flags)
-  options:
-    verbose: false                  # Show progress with simple output
-    debug: true                     # Show progress with tree structure
-    no_code_stats: false           # Disable code statistics (lines of code, comments, blanks, complexity)
-    component_code_stats: true     # Enable per-component code statistics
-    trace_timings: false            # Show timing information for each directory
-    trace_rules: false              # Show detailed rule matching information
-    filter_rules:                   # Only use these rules (for debugging)
-      - "nodejs"
-      - "python"
-      - "docker"
+  output_file: "results.json"      # Matches --output flag
+  pretty: true                     # Matches --pretty flag
+  aggregate: "techs,languages"     # Matches --aggregate flag
+  verbose: false                   # Matches --verbose flag
+  debug: true                      # Matches --debug flag
+  no_code_stats: false             # Matches --no-code-stats flag
+  component_code_stats: true       # Matches --component-code-stats flag
+  trace_timings: false             # Matches --trace-timings flag
+  trace_rules: false               # Matches --trace-rules flag
+  filter_rules:                    # Matches --rules flag
+    - "nodejs"
+    - "python"
+    - "docker"
 
 # Example usage scenarios:
 #
