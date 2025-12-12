@@ -67,6 +67,12 @@ func loadScanConfigFromFile(configPath string) (*ScanConfigFile, error) {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
+	// Validate raw content against schema BEFORE unmarshaling
+	// This catches unknown fields that Go's unmarshaler would silently ignore
+	if err := validation.ValidateYAML("stack-analyzer-config.json", data); err != nil {
+		return nil, fmt.Errorf("configuration validation failed: %w", err)
+	}
+
 	var config ScanConfigFile
 
 	// Try YAML first (most common)
@@ -77,24 +83,26 @@ func loadScanConfigFromFile(configPath string) (*ScanConfigFile, error) {
 		}
 	}
 
-	// Validate configuration against schema
-	if err := validation.ValidateStruct("stack-analyzer-config.json", &config); err != nil {
-		return nil, fmt.Errorf("configuration validation failed: %w", err)
-	}
-
 	return &config, nil
 }
 
 // loadScanConfigFromJSON loads configuration from inline JSON string
 func loadScanConfigFromJSON(jsonStr string) (*ScanConfigFile, error) {
-	var config ScanConfigFile
-	if err := json.Unmarshal([]byte(jsonStr), &config); err != nil {
+	// Validate raw JSON against schema BEFORE unmarshaling
+	// This catches unknown fields that Go's unmarshaler would silently ignore
+	var rawData interface{}
+	if err := json.Unmarshal([]byte(jsonStr), &rawData); err != nil {
 		return nil, fmt.Errorf("failed to parse inline JSON config: %w", err)
 	}
 
-	// Validate configuration against schema
-	if err := validation.ValidateStruct("stack-analyzer-config.json", &config); err != nil {
+	if err := validation.ValidateJSON("stack-analyzer-config.json", rawData); err != nil {
 		return nil, fmt.Errorf("configuration validation failed: %w", err)
+	}
+
+	// Now unmarshal into struct
+	var config ScanConfigFile
+	if err := json.Unmarshal([]byte(jsonStr), &config); err != nil {
+		return nil, fmt.Errorf("failed to parse inline JSON config: %w", err)
 	}
 
 	return &config, nil

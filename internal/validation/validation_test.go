@@ -151,6 +151,17 @@ func TestValidateJSON_InvalidConfig(t *testing.T) {
 			},
 			expect: "does not match pattern",
 		},
+		{
+			name: "properties inside scan not allowed",
+			config: map[string]interface{}{
+				"scan": map[string]interface{}{
+					"properties": map[string]interface{}{
+						"product_key": "nais",
+					},
+				},
+			},
+			expect: "additionalProperties",
+		},
 	}
 
 	for _, tt := range tests {
