@@ -245,6 +245,10 @@ func (s *Scanner) Scan() (*types.Payload, error) {
 		payload.AddTech(tech.Tech, tech.Reason)
 	}
 
+	// Set git information on payload BEFORE recursion starts
+	// This ensures child components can check against parent git info
+	payload.Git = git.GetGitInfo(basePath)
+
 	// Start recursion from base path (like TypeScript's payload.recurse(provider, provider.basePath))
 	err = s.recurse(payload, basePath)
 	if err != nil {
@@ -426,9 +430,7 @@ func (s *Scanner) ScanFile(fileName string) (*types.Payload, error) {
 	scanMeta.SetLanguageCount(languageCount)
 	scanMeta.SetTechCounts(techCount, techsCount)
 
-	// Set git information directly on payload
-	payload.Git = git.GetGitInfo(basePath)
-
+	// Attach metadata to root payload
 	payload.Metadata = scanMeta
 
 	// Assign unique IDs to the payload tree
@@ -522,10 +524,18 @@ func (s *Scanner) recurse(payload *types.Payload, filePath string) error {
 	ctx := s.applyRules(payload, filteredFiles, filePath)
 
 	// Check if this directory is a git repository and set git info
-	// Only set git info if it's not already set (avoid overwriting parent repo info)
+	// Only set git info if it's in a different repository than the parent context
 	if ctx.Git == nil {
 		if gitInfo := s.getGitInfo(filePath); gitInfo != nil {
-			ctx.Git = gitInfo
+			// Only add git info if this directory is in a different repository than the parent context
+			// For root level, parent is the same as payload, so we check payload.Git
+			var parentGit *git.GitInfo
+			if payload != nil {
+				parentGit = payload.Git
+			}
+			if parentGit == nil || parentGit.RemoteURL != gitInfo.RemoteURL {
+				ctx.Git = gitInfo
+			}
 		}
 	}
 
@@ -594,13 +604,9 @@ func (s *Scanner) detectComponents(payload, ctx *types.Payload, files []types.Fi
 	for _, detector := range components.GetDetectors() {
 		detectedComponents := detector.Detect(files, currentPath, s.provider.GetBasePath(), s.provider, s.depDetector)
 		for _, component := range detectedComponents {
-			// Add git information to newly created components
-			// Only set if not already present (allows detectors to override if needed)
-			if component.Git == nil {
-				if gitInfo := s.getGitInfo(currentPath); gitInfo != nil {
-					component.Git = gitInfo
-				}
-			}
+			// Note: Components should NOT get git info by default
+			// Git info is only added at directory level when component is in a different repository
+			// This prevents redundant git info for components in the same repo as their parent
 
 			if component.Name == "virtual" {
 				virtualComponents = append(virtualComponents, component)
