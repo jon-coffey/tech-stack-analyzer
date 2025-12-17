@@ -371,11 +371,6 @@
           "category": "automation"
         },
         {
-          "name": "Gitlab",
-          "tech": "gitlab",
-          "category": "automation"
-        },
-        {
           "name": "Inngest",
           "tech": "inngest",
           "category": "automation"
@@ -1650,6 +1645,11 @@
           "category": "database"
         },
         {
+          "name": "H2 Database",
+          "tech": "h2",
+          "category": "database"
+        },
+        {
           "name": "InfluxDB",
           "tech": "influxdb",
           "category": "database"
@@ -2452,6 +2452,11 @@
           "category": "identity"
         },
         {
+          "name": "Connect2ID",
+          "tech": "connect2id",
+          "category": "identity"
+        },
+        {
           "name": "Frontegg",
           "tech": "frontegg",
           "category": "identity"
@@ -2735,6 +2740,11 @@
         {
           "name": "BouncyCastle",
           "tech": "bouncycastle",
+          "category": "library"
+        },
+        {
+          "name": "Chilkat",
+          "tech": "chilkat",
           "category": "library"
         },
         {
@@ -4145,6 +4155,11 @@
           "category": "tool"
         },
         {
+          "name": "Innovasys",
+          "tech": "innovasys",
+          "category": "tool"
+        },
+        {
           "name": "Mailhog",
           "tech": "mailhog",
           "category": "tool"
@@ -4259,6 +4274,11 @@
         {
           "name": "CodeMirror",
           "tech": "codemirror",
+          "category": "ui"
+        },
+        {
+          "name": "ComponentOne",
+          "tech": "componentone",
           "category": "ui"
         },
         {
@@ -4540,6 +4560,21 @@
         {
           "name": "Git",
           "tech": "git",
+          "category": "vcs"
+        },
+        {
+          "name": "Gitea",
+          "tech": "gitea",
+          "category": "vcs"
+        },
+        {
+          "name": "GitHub",
+          "tech": "github",
+          "category": "vcs"
+        },
+        {
+          "name": "Gitlab",
+          "tech": "gitlab",
           "category": "vcs"
         },
         {

@@ -419,12 +419,6 @@ categories:
           description: ""
           isprimarytech: null
           properties: {}
-        - name: Gitlab
-          tech: gitlab
-          category: automation
-          description: ""
-          isprimarytech: null
-          properties: {}
         - name: Inngest
           tech: inngest
           category: automation
@@ -1903,6 +1897,12 @@ categories:
           description: ""
           isprimarytech: null
           properties: {}
+        - name: H2 Database
+          tech: h2
+          category: database
+          description: ""
+          isprimarytech: null
+          properties: {}
         - name: InfluxDB
           tech: influxdb
           category: database
@@ -2829,6 +2829,12 @@ categories:
           description: ""
           isprimarytech: null
           properties: {}
+        - name: Connect2ID
+          tech: connect2id
+          category: identity
+          description: ""
+          isprimarytech: null
+          properties: {}
         - name: Frontegg
           tech: frontegg
           category: identity
@@ -3151,6 +3157,12 @@ categories:
       technologies:
         - name: BouncyCastle
           tech: bouncycastle
+          category: library
+          description: ""
+          isprimarytech: null
+          properties: {}
+        - name: Chilkat
+          tech: chilkat
           category: library
           description: ""
           isprimarytech: null
@@ -4753,6 +4765,12 @@ categories:
           description: ""
           isprimarytech: null
           properties: {}
+        - name: Innovasys
+          tech: innovasys
+          category: tool
+          description: ""
+          isprimarytech: null
+          properties: {}
         - name: Mailhog
           tech: mailhog
           category: tool
@@ -4885,6 +4903,12 @@ categories:
           properties: {}
         - name: CodeMirror
           tech: codemirror
+          category: ui
+          description: ""
+          isprimarytech: null
+          properties: {}
+        - name: ComponentOne
+          tech: componentone
           category: ui
           description: ""
           isprimarytech: null
@@ -5209,6 +5233,24 @@ categories:
           properties: {}
         - name: Git
           tech: git
+          category: vcs
+          description: ""
+          isprimarytech: null
+          properties: {}
+        - name: Gitea
+          tech: gitea
+          category: vcs
+          description: ""
+          isprimarytech: null
+          properties: {}
+        - name: GitHub
+          tech: github
+          category: vcs
+          description: ""
+          isprimarytech: null
+          properties: {}
+        - name: Gitlab
+          tech: gitlab
           category: vcs
           description: ""
           isprimarytech: null
