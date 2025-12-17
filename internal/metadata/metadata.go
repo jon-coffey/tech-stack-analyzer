@@ -8,6 +8,7 @@ import (
 // ScanMetadata contains information about the scan execution
 type ScanMetadata struct {
 	Format         string                 `json:"format"` // Output format: "full" or "aggregated"
+	Source         string                 `json:"source"` // Tool that created this file
 	Timestamp      string                 `json:"timestamp"`
 	ScanPath       string                 `json:"scan_path"`
 	SpecVersion    string                 `json:"specVersion"` // Output format specification version
@@ -25,6 +26,7 @@ func NewScanMetadata(scanPath string, version string) *ScanMetadata {
 	absPath, _ := filepath.Abs(scanPath)
 
 	return &ScanMetadata{
+		Source:      "tech-stack-scanner",
 		Timestamp:   time.Now().UTC().Format(time.RFC3339),
 		ScanPath:    absPath,
 		SpecVersion: version,

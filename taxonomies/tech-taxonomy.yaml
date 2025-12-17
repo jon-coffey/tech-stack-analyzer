@@ -2023,6 +2023,12 @@ categories:
           description: ""
           isprimarytech: null
           properties: {}
+        - name: Pick Database
+          tech: pick
+          category: database
+          description: ""
+          isprimarytech: null
+          properties: {}
         - name: Pinecone
           tech: pinecone
           category: database

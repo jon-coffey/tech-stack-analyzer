@@ -205,6 +205,10 @@
                             "enum": ["full", "aggregated"],
                             "description": "Output format type"
                         },
+                        "source": {
+                            "type": "string",
+                            "description": "Tool that created this file"
+                        },
                         "timestamp": {
                             "type": "string",
                             "format": "date-time",
@@ -274,6 +278,10 @@
                             "type": "string",
                             "enum": ["full", "aggregated"],
                             "description": "Output format type"
+                        },
+                        "source": {
+                            "type": "string",
+                            "description": "Tool that created this file"
                         },
                         "timestamp": {
                             "type": "string",
