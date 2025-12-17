@@ -10,15 +10,16 @@ import (
 
 // AggregateOutput represents aggregated/rolled-up data from the scan
 type AggregateOutput struct {
-	Metadata           interface{}         `json:"metadata,omitempty"`            // Scan metadata (from root payload)
-	Git                []*git.GitInfo      `json:"git,omitempty"`                 // Git repositories (deduplicated)
-	Tech               []string            `json:"tech,omitempty"`                // Primary/main technologies
-	Techs              []string            `json:"techs,omitempty"`               // All detected technologies
-	Reason             map[string][]string `json:"reason,omitempty"`              // Technology to detection reasons mapping, "_" for non-tech reasons
-	Languages          map[string]int      `json:"languages,omitempty"`           // Language file counts
-	LicensesAggregated []string            `json:"licenses_aggregated,omitempty"` // Detected licenses (unique names only)
-	Dependencies       [][]string          `json:"dependencies,omitempty"`        // All dependencies [type, name, version]
-	CodeStats          interface{}         `json:"code_stats,omitempty"`          // Code statistics (if enabled)
+	Metadata           interface{}             `json:"metadata,omitempty"`            // Scan metadata (from root payload)
+	Git                []*git.GitInfo          `json:"git,omitempty"`                 // Git repositories (deduplicated)
+	Tech               []string                `json:"tech,omitempty"`                // Primary/main technologies
+	Techs              []string                `json:"techs,omitempty"`               // All detected technologies
+	Reason             map[string][]string     `json:"reason,omitempty"`              // Technology to detection reasons mapping, "_" for non-tech reasons
+	Languages          map[string]int          `json:"languages,omitempty"`           // Language file counts
+	PrimaryLanguages   []types.PrimaryLanguage `json:"primary_languages,omitempty"`   // Top programming languages (from code_stats)
+	LicensesAggregated []string                `json:"licenses_aggregated,omitempty"` // Detected licenses (unique names only)
+	Dependencies       [][]string              `json:"dependencies,omitempty"`        // All dependencies [type, name, version]
+	CodeStats          interface{}             `json:"code_stats,omitempty"`          // Code statistics (if enabled)
 }
 
 // Aggregator handles aggregation of scan results
@@ -77,6 +78,9 @@ func (a *Aggregator) Aggregate(payload *types.Payload) *AggregateOutput {
 
 	// Include code stats if present
 	output.CodeStats = payload.CodeStats
+
+	// Copy primary_languages from root payload (already extracted from code_stats)
+	output.PrimaryLanguages = payload.PrimaryLanguages
 
 	return output
 }

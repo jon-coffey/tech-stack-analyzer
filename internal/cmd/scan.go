@@ -32,6 +32,21 @@ func attachComponentCodeStats(payload *types.Payload, analyzer codestats.Analyze
 	}
 }
 
+// convertPrimaryLanguages converts codestats.PrimaryLanguage to types.PrimaryLanguage
+func convertPrimaryLanguages(src []codestats.PrimaryLanguage) []types.PrimaryLanguage {
+	if len(src) == 0 {
+		return nil
+	}
+	result := make([]types.PrimaryLanguage, len(src))
+	for i, pl := range src {
+		result[i] = types.PrimaryLanguage{
+			Language: pl.Language,
+			Pct:      pl.Pct,
+		}
+	}
+	return result
+}
+
 // attachComponentCodeStatsRecursive attaches code stats to a component and its children
 func attachComponentCodeStatsRecursive(payload *types.Payload, analyzer codestats.Analyzer) {
 	// Attach stats to current component
@@ -344,7 +359,15 @@ func runScanner(absPath string, isFile bool, mergedConfig *config.ScanConfig, lo
 	// Attach code stats to payload if enabled
 	if codeStatsAnalyzer.IsEnabled() {
 		if p, ok := payload.(*types.Payload); ok {
-			p.CodeStats = codeStatsAnalyzer.GetStats()
+			stats := codeStatsAnalyzer.GetStats()
+			p.CodeStats = stats
+
+			// Extract primary_languages from code_stats and set on root payload
+			if cs, ok := stats.(*codestats.CodeStats); ok {
+				if cs.ByType.Programming != nil && cs.ByType.Programming.Metrics != nil {
+					p.PrimaryLanguages = convertPrimaryLanguages(cs.ByType.Programming.Metrics.PrimaryLanguages)
+				}
+			}
 
 			// Attach per-component stats if enabled (post-processing)
 			if codeStatsAnalyzer.IsPerComponentEnabled() {

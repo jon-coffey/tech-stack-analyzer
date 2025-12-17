@@ -2853,6 +2853,12 @@ categories:
           description: ""
           isprimarytech: null
           properties: {}
+        - name: Keycloak
+          tech: keycloak
+          category: identity
+          description: ""
+          isprimarytech: null
+          properties: {}
         - name: Kinde
           tech: kinde
           category: identity

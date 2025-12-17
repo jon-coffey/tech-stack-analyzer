@@ -12,21 +12,22 @@ import (
 
 // Payload represents the analysis result for a directory or component
 type Payload struct {
-	Metadata     interface{}            `json:"metadata,omitempty"`
-	Git          *git.GitInfo           `json:"git,omitempty"`
-	ID           string                 `json:"id"`
-	Name         string                 `json:"name"`
-	Path         []string               `json:"path"`
-	Tech         []string               `json:"tech"` // Changed from *string to []string to support multiple primary technologies
-	Techs        []string               `json:"techs"`
-	Languages    map[string]int         `json:"languages"`
-	Licenses     []License              `json:"licenses"` // Changed to structured License objects
-	Reason       map[string][]string    `json:"reason"`   // Maps technology to detection reasons, "_" for non-tech reasons
-	Dependencies []Dependency           `json:"dependencies"`
-	Properties   map[string]interface{} `json:"properties,omitempty"`
-	Childs       []*Payload             `json:"childs"` // Changed from Children to Childs
-	Edges        []Edge                 `json:"edges"`
-	CodeStats    interface{}            `json:"code_stats,omitempty"`
+	Metadata         interface{}            `json:"metadata,omitempty"`
+	Git              *git.GitInfo           `json:"git,omitempty"`
+	ID               string                 `json:"id"`
+	Name             string                 `json:"name"`
+	Path             []string               `json:"path"`
+	Tech             []string               `json:"tech"` // Changed from *string to []string to support multiple primary technologies
+	Techs            []string               `json:"techs"`
+	Languages        map[string]int         `json:"languages"`
+	PrimaryLanguages []PrimaryLanguage      `json:"primary_languages,omitempty"` // Top programming languages (from code_stats)
+	Licenses         []License              `json:"licenses"`                    // Changed to structured License objects
+	Reason           map[string][]string    `json:"reason"`                      // Maps technology to detection reasons, "_" for non-tech reasons
+	Dependencies     []Dependency           `json:"dependencies"`
+	Properties       map[string]interface{} `json:"properties,omitempty"`
+	Childs           []*Payload             `json:"childs"` // Changed from Children to Childs
+	Edges            []Edge                 `json:"edges"`
+	CodeStats        interface{}            `json:"code_stats,omitempty"`
 }
 
 // Edge represents a relationship between components
@@ -34,6 +35,12 @@ type Edge struct {
 	Target *Payload `json:"target"`
 	Read   bool     `json:"read"`
 	Write  bool     `json:"write"`
+}
+
+// PrimaryLanguage represents a primary programming language (top languages by lines of code)
+type PrimaryLanguage struct {
+	Language string  `json:"language"`
+	Pct      float64 `json:"pct"`
 }
 
 // License represents a structured license entity for knowledge graph integration

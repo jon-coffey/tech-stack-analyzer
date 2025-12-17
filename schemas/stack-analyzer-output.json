@@ -52,6 +52,24 @@
             "description": "Arbitrary properties map",
             "additionalProperties": true
         },
+        "primary_language": {
+            "type": "object",
+            "description": "Primary programming language with percentage",
+            "properties": {
+                "language": {
+                    "type": "string",
+                    "description": "Programming language name"
+                },
+                "pct": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Percentage of total lines (0.0-1.0)"
+                }
+            },
+            "required": ["language", "pct"],
+            "additionalProperties": false
+        },
         "full": {
             "type": "object",
             "properties": {
@@ -92,6 +110,13 @@
                         "^[A-Za-z0-9_\\-]+$": {
                             "type": "integer"
                         }
+                    }
+                },
+                "primary_languages": {
+                    "type": "array",
+                    "description": "Top programming languages by lines of code (max 5, ≥1% threshold)",
+                    "items": {
+                        "$ref": "#/definitions/primary_language"
                     }
                 },
                 "dependencies": {
@@ -329,6 +354,13 @@
                 },
                 "languages": {
                     "type": "object"
+                },
+                "primary_languages": {
+                    "type": "array",
+                    "description": "Top programming languages by lines of code (max 5, ≥1% threshold)",
+                    "items": {
+                        "$ref": "#/definitions/primary_language"
+                    }
                 },
                 "licenses_aggregated": {
                     "type": "array",

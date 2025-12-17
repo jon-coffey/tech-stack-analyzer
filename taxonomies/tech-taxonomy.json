@@ -2472,6 +2472,11 @@
           "category": "identity"
         },
         {
+          "name": "Keycloak",
+          "tech": "keycloak",
+          "category": "identity"
+        },
+        {
           "name": "Kinde",
           "tech": "kinde",
           "category": "identity"
