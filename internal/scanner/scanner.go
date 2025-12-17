@@ -253,10 +253,8 @@ func (s *Scanner) Scan() (*types.Payload, error) {
 	// Create main payload like in TypeScript: new Payload({ name: 'main', folderPath: '/' })
 	payload := types.NewPayloadWithPath("main", "/")
 
-	// Add configured techs to payload
-	for _, tech := range cfg.Techs {
-		payload.AddTech(tech.Tech, tech.Reason)
-	}
+	// Configured techs are handled in cmd with validation
+	// Do not add them here to avoid duplication
 
 	// Set git information on payload BEFORE recursion starts
 	// This ensures child components can check against parent git info

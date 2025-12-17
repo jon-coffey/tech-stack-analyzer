@@ -4,6 +4,10 @@
 
 categories:
   # Infrastructure & Data - CREATE components
+  os:
+    is_component: true
+    description: "Operating systems like Linux, MacOS, ..."
+
   database:
     is_component: true
     description: "Database systems (PostgreSQL, MongoDB, Redis, etc.)"
@@ -203,3 +207,13 @@ categories:
   platform:
     is_component: false
     description: "Low-code platforms, operating systems (Uniface, Windows, Linux)"
+
+  # External/Unmapped Technologies
+  unmapped:
+    is_component: false
+    description: "Technologies from external sources not in official taxonomy (naming: unmapped_<tech>)"
+
+  # In-house/Proprietary Technologies
+  proprietary:
+    is_component: false
+    description: "In-house/internal technologies (naming: prop_<name> or prop_<org>_<name>)"

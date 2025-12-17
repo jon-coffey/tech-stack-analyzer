@@ -31,10 +31,11 @@ func GroupTechsByCategory(allRules []types.Rule) map[string][]types.TechInfo {
 	categoryMap := make(map[string][]types.TechInfo)
 	for _, rule := range allRules {
 		techInfo := types.TechInfo{
-			Name:        rule.Name,
-			Tech:        rule.Tech,
-			Category:    rule.Type,
-			Description: rule.Description,
+			Name:          rule.Name,
+			Tech:          rule.Tech,
+			Category:      rule.Type,
+			Description:   rule.Description,
+			IsPrimaryTech: rule.IsPrimaryTech,
 		}
 		if len(rule.Properties) > 0 {
 			techInfo.Properties = rule.Properties

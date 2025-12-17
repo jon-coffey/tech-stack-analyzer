@@ -1,5 +1,6 @@
 tech: golang
 name: Golang
+is_primary_tech: true
 dependencies:
   - type: docker
     name: golang

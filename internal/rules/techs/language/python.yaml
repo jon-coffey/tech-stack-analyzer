@@ -1,5 +1,6 @@
 tech: python
 name: Python
+is_primary_tech: true
 dependencies:
   - type: githubAction
     name: actions/setup-python

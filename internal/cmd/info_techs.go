@@ -60,9 +60,10 @@ func runTechs(cmd *cobra.Command, args []string) {
 	for _, techKey := range techKeys {
 		rule := ruleMap[techKey]
 		info := types.TechInfo{
-			Name:     rule.Name,
-			Tech:     techKey,
-			Category: rule.Type,
+			Name:          rule.Name,
+			Tech:          techKey,
+			Category:      rule.Type,
+			IsPrimaryTech: rule.IsPrimaryTech,
 		}
 		if rule.Description != "" {
 			info.Description = rule.Description

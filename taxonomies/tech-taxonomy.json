@@ -445,7 +445,8 @@
         {
           "name": ".NET",
           "tech": "dotnet",
-          "category": "backend_framework"
+          "category": "backend_framework",
+          "is_primary_tech": true
         },
         {
           "name": "ElysiaJS",
@@ -1558,6 +1559,11 @@
           "category": "database"
         },
         {
+          "name": "Codebase",
+          "tech": "codebase",
+          "category": "database"
+        },
+        {
           "name": "Convex",
           "tech": "convexdb",
           "category": "database"
@@ -1570,6 +1576,11 @@
         {
           "name": "CrateDB",
           "tech": "cratedb",
+          "category": "database"
+        },
+        {
+          "name": "c-tree",
+          "tech": "ctree",
           "category": "database"
         },
         {
@@ -1588,6 +1599,11 @@
           "category": "database"
         },
         {
+          "name": "FastObjects",
+          "tech": "fastobjects",
+          "category": "database"
+        },
+        {
           "name": "Firebase Firestore",
           "tech": "firebase.firestore",
           "category": "database"
@@ -1596,6 +1612,12 @@
           "name": "Firebird",
           "tech": "firebird",
           "category": "database"
+        },
+        {
+          "name": "FoxPro",
+          "tech": "foxpro",
+          "category": "database",
+          "is_primary_tech": true
         },
         {
           "name": "Cloud BigQuery",
@@ -1640,6 +1662,11 @@
         {
           "name": "libSQL",
           "tech": "libsql",
+          "category": "database"
+        },
+        {
+          "name": "LiteDB",
+          "tech": "litedb",
           "category": "database"
         },
         {
@@ -1793,6 +1820,16 @@
           "category": "database"
         },
         {
+          "name": "Rocket UniVerse",
+          "tech": "rocket_universe",
+          "category": "database"
+        },
+        {
+          "name": "SAP ASE",
+          "tech": "sap_ase",
+          "category": "database"
+        },
+        {
           "name": "Scaleway Database",
           "tech": "scaleway.database",
           "category": "database"
@@ -1919,7 +1956,8 @@
         {
           "name": "Delphi",
           "tech": "delphi",
-          "category": "desktop_framework"
+          "category": "desktop_framework",
+          "is_primary_tech": true
         },
         {
           "name": "Dioxus",
@@ -2486,6 +2524,11 @@
           "category": "language"
         },
         {
+          "name": "APL",
+          "tech": "apl",
+          "category": "language"
+        },
+        {
           "name": "AWK",
           "tech": "awk",
           "category": "language"
@@ -2523,7 +2566,8 @@
         {
           "name": "C++",
           "tech": "cplusplus",
-          "category": "language"
+          "category": "language",
+          "is_primary_tech": true
         },
         {
           "name": "C#",
@@ -2553,7 +2597,8 @@
         {
           "name": "Golang",
           "tech": "golang",
-          "category": "language"
+          "category": "language",
+          "is_primary_tech": true
         },
         {
           "name": "Groovy",
@@ -2568,7 +2613,8 @@
         {
           "name": "Java",
           "tech": "java",
-          "category": "language"
+          "category": "language",
+          "is_primary_tech": true
         },
         {
           "name": "JavaScript",
@@ -2596,6 +2642,11 @@
           "category": "language"
         },
         {
+          "name": "MUMPS",
+          "tech": "mumps",
+          "category": "language"
+        },
+        {
           "name": "Objective-C",
           "tech": "objectivec",
           "category": "language"
@@ -2608,12 +2659,14 @@
         {
           "name": "PHP",
           "tech": "php",
-          "category": "language"
+          "category": "language",
+          "is_primary_tech": true
         },
         {
           "name": "Python",
           "tech": "python",
-          "category": "language"
+          "category": "language",
+          "is_primary_tech": true
         },
         {
           "name": "R",
@@ -2623,12 +2676,14 @@
         {
           "name": "Ruby",
           "tech": "ruby",
-          "category": "language"
+          "category": "language",
+          "is_primary_tech": true
         },
         {
           "name": "Rust",
           "tech": "rust",
-          "category": "language"
+          "category": "language",
+          "is_primary_tech": true
         },
         {
           "name": "Scala",
@@ -3251,6 +3306,53 @@
       ]
     },
     {
+      "name": "os",
+      "description": "Operating systems like Linux, MacOS, ...",
+      "is_component": true,
+      "technologies": [
+        {
+          "name": "Android",
+          "tech": "os_android",
+          "category": "os"
+        },
+        {
+          "name": "IBM Power",
+          "tech": "os_ibm_power",
+          "category": "os"
+        },
+        {
+          "name": "iOS",
+          "tech": "os_ios",
+          "category": "os"
+        },
+        {
+          "name": "Linux",
+          "tech": "os_linux",
+          "category": "os"
+        },
+        {
+          "name": "macOS",
+          "tech": "os_macos",
+          "category": "os"
+        },
+        {
+          "name": "VMware",
+          "tech": "os_vmware",
+          "category": "os"
+        },
+        {
+          "name": "Windows",
+          "tech": "os_windows",
+          "category": "os"
+        },
+        {
+          "name": "Windows Server",
+          "tech": "os_windows_server",
+          "category": "os"
+        }
+      ]
+    },
+    {
       "name": "package_manager",
       "description": "Package managers (npm, pip, cargo, maven)",
       "is_component": false,
@@ -3278,7 +3380,8 @@
         {
           "name": "CocoaPods",
           "tech": "cocoapods",
-          "category": "package_manager"
+          "category": "package_manager",
+          "is_primary_tech": true
         },
         {
           "name": "Conan",
@@ -3442,6 +3545,18 @@
       ]
     },
     {
+      "name": "proprietary",
+      "description": "In-house/internal technologies (naming: prop_\u003cname\u003e or prop_\u003corg\u003e_\u003cname\u003e)",
+      "is_component": false,
+      "technologies": [
+        {
+          "name": "Example Proprietary Technology",
+          "tech": "prop_example",
+          "category": "proprietary"
+        }
+      ]
+    },
+    {
       "name": "runtime",
       "description": "Runtime environments (Node.js runtime, Python runtime, etc.)",
       "is_component": false,
@@ -3459,7 +3574,8 @@
         {
           "name": "NodeJS",
           "tech": "nodejs",
-          "category": "runtime"
+          "category": "runtime",
+          "is_primary_tech": true
         }
       ]
     },
@@ -4363,6 +4479,18 @@
       ]
     },
     {
+      "name": "unmapped",
+      "description": "Technologies from external sources not in official taxonomy (naming: unmapped_\u003ctech\u003e)",
+      "is_component": false,
+      "technologies": [
+        {
+          "name": "Unknown Technology",
+          "tech": "unmapped_unknown",
+          "category": "unmapped"
+        }
+      ]
+    },
+    {
       "name": "validation",
       "description": "Validation libraries",
       "is_component": false,
@@ -4514,5 +4642,5 @@
       ]
     }
   ],
-  "count": 49
+  "count": 52
 }

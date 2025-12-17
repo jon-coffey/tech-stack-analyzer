@@ -368,16 +368,34 @@ func enhanceSinglePayload(payload interface{}, mergedConfig *config.ScanConfig) 
 		}
 	}
 
-	// Add configured techs to payload
+	// Add configured techs to payload with validation
 	if p, ok := payload.(*types.Payload); ok && len(mergedConfig.Techs) > 0 {
+		// Load rules for tech validation
+		allRules, _ := LoadRulesAndCategories()
+		ruleMap := make(map[string]*types.Rule)
+		for i := range allRules {
+			ruleMap[allRules[i].Tech] = &allRules[i]
+		}
+
 		for _, configTech := range mergedConfig.Techs {
-			// Convert ConfigTech to Payload format
-			techPayload := &types.Payload{
-				ID:     configTech.Tech,
-				Name:   configTech.Tech,
-				Reason: map[string][]string{configTech.Tech: {configTech.Reason}},
+			// Check if tech exists in taxonomy
+			techKey := configTech.Tech
+			reason := configTech.Reason
+
+			// If tech doesn't exist, map to unmapped_unknown
+			if _, exists := ruleMap[techKey]; !exists {
+				techKey = "unmapped_unknown"
+				if reason == "" {
+					reason = fmt.Sprintf("configured tech: %s (source: config)", configTech.Tech)
+				} else {
+					reason = fmt.Sprintf("configured tech: %s (source: config) - %s", configTech.Tech, reason)
+				}
+			} else if reason == "" {
+				reason = "configured tech (source: config)"
 			}
-			p.Childs = append(p.Childs, techPayload)
+
+			// Add tech to payload using existing AddTech method
+			p.AddTech(techKey, reason)
 		}
 	}
 }

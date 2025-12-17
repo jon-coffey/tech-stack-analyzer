@@ -1,5 +1,6 @@
 tech: rust
 name: Rust
+is_primary_tech: true
 dependencies:
   - type: docker
     name: rust
