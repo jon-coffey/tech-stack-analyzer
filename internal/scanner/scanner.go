@@ -58,6 +58,7 @@ type Scanner struct {
 	gitRootCache    map[string]string       // Cache path -> repo root mapping
 	rootID          string                  // Override root ID for deterministic scans
 	config          *config.ScanConfig      // Merged configuration for metadata properties
+	useLockFiles    bool                    // Use lock files for dependency resolution
 }
 
 // CodeStatsAnalyzer interface for code statistics collection
@@ -180,7 +181,39 @@ func NewScannerWithOptionsAndLogger(path string, excludePatterns []string, verbo
 		gitRootCache:    make(map[string]string),
 		rootID:          rootID,
 		config:          cfg,
+		useLockFiles:    true, // Default to true
 	}, nil
+}
+
+// NewScannerWithSettings creates a new scanner with full settings support
+func NewScannerWithSettings(path string, settings *config.Settings, mergedConfig *config.ScanConfig, logger *slog.Logger) (*Scanner, error) {
+	scanner, err := NewScannerWithOptionsAndLogger(
+		path,
+		settings.ExcludePatterns,
+		settings.Verbose,
+		false, // useTreeView - not in settings
+		settings.TraceTimings,
+		settings.TraceRules,
+		nil, // codeStats - handled separately
+		logger,
+		settings.RootID,
+		mergedConfig,
+	)
+	if err != nil {
+		return nil, err
+	}
+	scanner.useLockFiles = settings.UseLockFiles
+	return scanner, nil
+}
+
+// UseLockFiles returns whether lock files should be used for dependency resolution
+func (s *Scanner) UseLockFiles() bool {
+	return s.useLockFiles
+}
+
+// SetUseLockFiles sets whether lock files should be used for dependency resolution
+func (s *Scanner) SetUseLockFiles(use bool) {
+	s.useLockFiles = use
 }
 
 // scannerComponents holds all initialized scanner components

@@ -145,6 +145,11 @@
                     "maximum": 1,
                     "default": 0.05,
                     "description": "Minimum percentage (0.001-1.0) for a programming language to be considered primary (default: 0.05 = 5%)"
+                },
+                "use_lock_files": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Use lock files (package-lock.json, uv.lock, Cargo.lock, etc.) for dependency resolution with exact versions (default: true)"
                 }
             },
             "additionalProperties": false,

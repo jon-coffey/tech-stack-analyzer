@@ -1,9 +1,74 @@
 # Tech Stack Analyzer
 
-> **Work in Progress**  
-> This project is under active development. The output format, API, and configuration structure may change. While the core functionality is stable, breaking changes may occur as we refine the functionalities and add new features. Use in production environments at your own discretion.
+> **Focused on Fast Dependency Discovery**  
+> This tool specializes in rapid technology stack detection and dependency discovery. For comprehensive license compliance, security analysis, or deep file scanning, integrate our output with specialized tools in the software supply chain security ecosystem.
 
 A technology stack analyzer written in Go, re-implementing [specfy/stack-analyser](https://github.com/specfy/stack-analyser) with improvements and extended technology support.
+
+## Purpose & Philosophy
+
+**We do one thing exceptionally well: fast, reliable dependency discovery.**
+
+The Tech Stack Analyzer is designed to be the **fastest way to understand what technologies and dependencies your codebase uses**. We focus on speed and accuracy while leaving specialized analysis to dedicated tools:
+
+- **✅ Fast Dependency Detection** - Identify technologies, frameworks, and dependencies in seconds
+- **✅ Zero Dependencies** - Single binary deployment, no runtime requirements  
+- **✅ Technology Inventory** - Complete overview of your stack for documentation and planning
+- **❌ Deep License Analysis** - Use specialized license compliance tools with our output
+- **❌ Security Scanning** - Use dedicated vulnerability scanners with our dependency list
+- **❌ File-level Analysis** - Use specialized tools for deep code analysis
+
+**Integration Approach:** Our structured output serves as the perfect input for license compliance tools, vulnerability scanners, and software composition analysis (SCA) platforms.
+
+## Use Cases
+
+### 🚀 Primary Use Cases - What We Excel At:
+
+**Technology Inventory & Documentation**
+- Generate comprehensive technology stack documentation
+- Create architecture diagrams and dependency maps
+- Portfolio analysis across multiple repositories
+- M&A due diligence - quick technology assessment
+
+**CI/CD Integration**
+- Fast dependency detection in build pipelines
+- Technology compliance checks
+- Stack drift monitoring
+- Automated documentation generation
+
+**Development Planning**
+- Technology standardization initiatives
+- Migration planning (e.g., cloud migration)
+- Skill gap analysis based on detected technologies
+- Training needs assessment
+
+### 🔧 Integration Examples:
+
+**License Compliance Pipeline:**
+```bash
+# 1. Fast dependency detection
+./stack-analyzer scan /project --output deps.json
+
+# 2. License analysis (specialized tool)
+license-checker --input deps.json --policy company-policy.json
+```
+
+**Security Monitoring:**
+```bash
+# 1. Dependency discovery
+./stack-analyzer scan /project --aggregate dependencies --output deps.json
+
+# 2. Vulnerability scanning
+vuln-scanner --dependencies deps.json --database latest
+```
+
+**Portfolio Analysis:**
+```bash
+# Analyze 100 repositories in minutes
+for repo in company-projects/*; do
+  ./stack-analyzer scan "$repo" --output "results/$(basename $repo).json"
+done
+```
 
 ## What This Project Does
 
@@ -27,7 +92,15 @@ The Tech Stack Analyzer automatically detects technologies, frameworks, database
 - **Docker** - Base images, exposed ports, multi-stage builds, stages
 - **Terraform** - Providers, resource counts by category, total resources
 - **Kubernetes** - Deployments, services, configurations
-- **Package Files** - Exact versions, dependency relationships
+- **Package Files** - Exact versions from lock files, dependency relationships
+
+**Lock File Support:** The analyzer automatically uses lock files to extract exact resolved versions instead of version ranges:
+- **Node.js** - `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock` → falls back to `package.json`
+- **Python** - `uv.lock`, `poetry.lock` → falls back to `pyproject.toml`
+- **Rust** - `Cargo.lock` → falls back to `Cargo.toml`
+- **Go** - `go.mod` (already contains exact versions)
+
+This ensures accurate dependency versions for security scanning and compliance analysis.
 
 This structured metadata is exposed in the `properties` field of the output, 
 enabling security scanning, license compliance, and infrastructure analysis.
@@ -460,6 +533,9 @@ scan:
     - Default: 0.05 (5%)
     - Lower values show more languages, higher values show only dominant languages
     - Example: 0.01 shows languages with ≥1% usage, 0.10 shows only languages with ≥10% usage
+  - **`use_lock_files`** - Use lock files for dependency resolution (default: true)
+    - When enabled, extracts exact versions from lock files (package-lock.json, Cargo.lock, etc.)
+    - Set to `false` to use version ranges from manifest files instead
 
 **Benefits:**
 - **Version controlled** - Configuration lives with code
@@ -484,6 +560,7 @@ export STACK_ANALYZER_PRETTY=false
 export STACK_ANALYZER_EXCLUDE_DIRS=vendor,node_modules,build
 export STACK_ANALYZER_AGGREGATE=tech,techs,languages,git
 export STACK_ANALYZER_VERBOSE=true         # Show detailed progress information
+export STACK_ANALYZER_USE_LOCK_FILES=false # Disable lock file parsing (default: true)
 
 # Logging
 export STACK_ANALYZER_LOG_LEVEL=debug      # trace, debug, error, fatal (default: error)

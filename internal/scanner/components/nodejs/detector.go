@@ -8,6 +8,7 @@ import (
 
 	licensenormalizer "github.com/petrarca/tech-stack-analyzer/internal/license"
 	"github.com/petrarca/tech-stack-analyzer/internal/scanner/components"
+	"github.com/petrarca/tech-stack-analyzer/internal/scanner/parsers"
 	"github.com/petrarca/tech-stack-analyzer/internal/types"
 )
 
@@ -73,8 +74,8 @@ func (d *Detector) processPackageJSON(file types.File, currentPath, basePath str
 	payload := types.NewPayloadWithPath(packageJSON.Name, relativeFilePath)
 	payload.AddPrimaryTech("nodejs")
 
-	// Process dependencies
-	d.processDependencies(&packageJSON, payload, depDetector)
+	// Process dependencies using priority-based extraction (lock files first)
+	d.processDependenciesWithPriority(currentPath, provider, depDetector, payload)
 
 	// Process license
 	d.processLicense(&packageJSON, payload)
@@ -82,26 +83,109 @@ func (d *Detector) processPackageJSON(file types.File, currentPath, basePath str
 	return payload
 }
 
-// processDependencies handles dependency processing for package.json
-func (d *Detector) processDependencies(packageJSON *struct {
-	Name            string            `json:"name"`
-	Dependencies    map[string]string `json:"dependencies"`
-	DevDependencies map[string]string `json:"devDependencies"`
-	License         string            `json:"license"`
-}, payload *types.Payload, depDetector components.DependencyDetector) {
-	// Merge dependencies
-	allDeps := make(map[string]string)
-	for name, version := range packageJSON.Dependencies {
-		allDeps[name] = version
-	}
-	for name, version := range packageJSON.DevDependencies {
-		allDeps[name] = version
+// processDependenciesWithPriority handles dependency processing using lock file priority system
+// Priority 1: package-lock.json (npm)
+// Priority 2: pnpm-lock.yaml (pnpm)
+// Priority 3: yarn.lock (yarn)
+// Priority 4: package.json (fallback)
+func (d *Detector) processDependenciesWithPriority(currentPath string, provider types.Provider, depDetector components.DependencyDetector, payload *types.Payload) {
+	dependencies := d.extractDependenciesFromLockFiles(currentPath, provider)
+
+	// Add dependencies to payload
+	payload.Dependencies = append(payload.Dependencies, dependencies...)
+
+	// Match dependencies against rules for tech detection
+	d.matchAndAddTechs(dependencies, depDetector, payload)
+}
+
+// extractDependenciesFromLockFiles tries lock files in priority order and returns dependencies
+func (d *Detector) extractDependenciesFromLockFiles(currentPath string, provider types.Provider) []types.Dependency {
+	// Check if lock files are enabled
+	if !components.UseLockFiles() {
+		return d.tryPackageJSON(currentPath, provider)
 	}
 
-	// Match dependencies against rules
+	// Priority 1: package-lock.json
+	if deps := d.tryPackageLock(currentPath, provider); len(deps) > 0 {
+		return deps
+	}
+
+	// Priority 2: pnpm-lock.yaml
+	if deps := d.tryPnpmLock(currentPath, provider); len(deps) > 0 {
+		return deps
+	}
+
+	// Priority 3: yarn.lock
+	if deps := d.tryYarnLock(currentPath, provider); len(deps) > 0 {
+		return deps
+	}
+
+	// Priority 4: package.json fallback
+	return d.tryPackageJSON(currentPath, provider)
+}
+
+func (d *Detector) tryPackageLock(currentPath string, provider types.Provider) []types.Dependency {
+	lockContent, err := provider.ReadFile(filepath.Join(currentPath, "package-lock.json"))
+	if err != nil || len(lockContent) == 0 {
+		return nil
+	}
+	return parsers.ParsePackageLock(lockContent)
+}
+
+func (d *Detector) tryPnpmLock(currentPath string, provider types.Provider) []types.Dependency {
+	pnpmContent, err := provider.ReadFile(filepath.Join(currentPath, "pnpm-lock.yaml"))
+	if err != nil || len(pnpmContent) == 0 {
+		return nil
+	}
+	return parsers.ParsePnpmLock(pnpmContent)
+}
+
+func (d *Detector) tryYarnLock(currentPath string, provider types.Provider) []types.Dependency {
+	yarnContent, err := provider.ReadFile(filepath.Join(currentPath, "yarn.lock"))
+	if err != nil || len(yarnContent) == 0 {
+		return nil
+	}
+
+	packageContent, err := provider.ReadFile(filepath.Join(currentPath, "package.json"))
+	if err != nil {
+		return nil
+	}
+
+	nodejsParser := parsers.NewNodeJSParser()
+	pkg, err := nodejsParser.ParsePackageJSON(packageContent)
+	if err != nil {
+		return nil
+	}
+
+	return parsers.ParseYarnLock(yarnContent, pkg)
+}
+
+func (d *Detector) tryPackageJSON(currentPath string, provider types.Provider) []types.Dependency {
+	packageContent, err := provider.ReadFile(filepath.Join(currentPath, "package.json"))
+	if err != nil {
+		return nil
+	}
+
+	nodejsParser := parsers.NewNodeJSParser()
+	pkg, err := nodejsParser.ParsePackageJSON(packageContent)
+	if err != nil {
+		return nil
+	}
+
+	depNames := nodejsParser.ExtractDependencies(pkg)
+	dependencies := nodejsParser.CreateDependencies(pkg, depNames)
+
+	for i := range dependencies {
+		dependencies[i].SourceFile = "package.json"
+	}
+
+	return dependencies
+}
+
+func (d *Detector) matchAndAddTechs(dependencies []types.Dependency, depDetector components.DependencyDetector, payload *types.Payload) {
 	var depNames []string
-	for name := range allDeps {
-		depNames = append(depNames, name)
+	for _, dep := range dependencies {
+		depNames = append(depNames, dep.Name)
 	}
 
 	matchedTechs := depDetector.MatchDependencies(depNames, "npm")
@@ -109,15 +193,6 @@ func (d *Detector) processDependencies(packageJSON *struct {
 		for _, reason := range reasons {
 			payload.AddTech(tech, reason)
 		}
-	}
-
-	// Convert to dependency array
-	for name, version := range allDeps {
-		payload.Dependencies = append(payload.Dependencies, types.Dependency{
-			Type:    "npm",
-			Name:    name,
-			Example: version,
-		})
 	}
 }
 

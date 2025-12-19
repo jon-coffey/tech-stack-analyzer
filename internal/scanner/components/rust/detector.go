@@ -40,7 +40,7 @@ func (d *Detector) detectCargoToml(file types.File, currentPath, basePath string
 
 	// Parse Cargo.toml using parser
 	rustParser := parsers.NewRustParser()
-	projectName, license, dependencies, isWorkspace := rustParser.ParseCargoToml(string(content))
+	projectName, license, _, isWorkspace := rustParser.ParseCargoToml(string(content))
 
 	// Create payload (named if not workspace and has package section, virtual otherwise)
 	var payload *types.Payload
@@ -62,6 +62,9 @@ func (d *Detector) detectCargoToml(file types.File, currentPath, basePath string
 		// Virtual payload for workspace files or files without [package] section
 		payload = types.NewPayloadWithPath("virtual", relativeFilePath)
 	}
+
+	// Extract dependencies using lock file priority system
+	dependencies := d.extractDependenciesWithPriority(currentPath, string(content), provider)
 
 	// Extract dependency names for tech matching
 	var depNames []string
@@ -118,6 +121,40 @@ func (d *Detector) detectCargoToml(file types.File, currentPath, basePath string
 	}
 
 	return payload
+}
+
+// extractDependenciesWithPriority extracts dependencies using lock file priority system
+// Priority 1: Cargo.lock (resolved versions)
+// Priority 2: Cargo.toml (version ranges as fallback)
+func (d *Detector) extractDependenciesWithPriority(currentPath, cargoTomlContent string, provider types.Provider) []types.Dependency {
+	// Check if lock files are enabled
+	if !components.UseLockFiles() {
+		rustParser := parsers.NewRustParser()
+		_, _, dependencies, _ := rustParser.ParseCargoToml(cargoTomlContent)
+		for i := range dependencies {
+			dependencies[i].SourceFile = "Cargo.toml"
+		}
+		return dependencies
+	}
+
+	// Priority 1: Check for Cargo.lock
+	if lockContent, err := provider.ReadFile(filepath.Join(currentPath, "Cargo.lock")); err == nil && len(lockContent) > 0 {
+		deps := parsers.ParseCargoLock(lockContent, cargoTomlContent)
+		if len(deps) > 0 {
+			return deps
+		}
+	}
+
+	// Priority 2: Fallback to Cargo.toml
+	rustParser := parsers.NewRustParser()
+	_, _, dependencies, _ := rustParser.ParseCargoToml(cargoTomlContent)
+
+	// Add source file information
+	for i := range dependencies {
+		dependencies[i].SourceFile = "Cargo.toml"
+	}
+
+	return dependencies
 }
 
 // detectLicense normalizes license strings using the shared SPDX-compliant normalizer

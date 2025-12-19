@@ -23,13 +23,19 @@ type Rule struct {
 
 // Dependency represents a dependency pattern (struct for YAML, but marshals as array for JSON)
 type Dependency struct {
-	Type    string `yaml:"type" json:"type"`
-	Name    string `yaml:"name" json:"name"`
-	Example string `yaml:"example,omitempty" json:"example,omitempty"`
+	Type       string `yaml:"type" json:"type"`
+	Name       string `yaml:"name" json:"name"`
+	Example    string `yaml:"example,omitempty" json:"example,omitempty"`
+	SourceFile string `yaml:"source_file,omitempty" json:"source_file,omitempty"`
 }
 
-// MarshalJSON converts Dependency struct to array format [type, name, version] to match TypeScript
+// MarshalJSON converts Dependency struct to array format [type, name, version, source_file] to match TypeScript
 func (d Dependency) MarshalJSON() ([]byte, error) {
+	if d.SourceFile != "" {
+		// New format with source file
+		return json.Marshal([]string{d.Type, d.Name, d.Example, d.SourceFile})
+	}
+	// Backward compatibility - old format without source file
 	return json.Marshal([]string{d.Type, d.Name, d.Example})
 }
 

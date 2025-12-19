@@ -8,6 +8,7 @@ import (
 
 	"github.com/petrarca/tech-stack-analyzer/internal/license"
 	"github.com/petrarca/tech-stack-analyzer/internal/scanner/components"
+	"github.com/petrarca/tech-stack-analyzer/internal/scanner/parsers"
 	"github.com/petrarca/tech-stack-analyzer/internal/types"
 )
 
@@ -53,8 +54,8 @@ func (d *Detector) Detect(files []types.File, currentPath, basePath string, prov
 		// Set tech field to python
 		payload.AddPrimaryTech("python")
 
-		// Parse dependencies
-		dependencies := parseDependencies(string(content))
+		// Parse dependencies using lock file priority system
+		dependencies := extractDependenciesWithPriority(currentPath, projectName, string(content), provider)
 
 		// Extract dependency names for tech matching
 		var depNames []string
@@ -144,6 +145,47 @@ func parseDependencies(content string) []types.Dependency {
 				dependencies = append(dependencies, *dep)
 			}
 		}
+	}
+
+	return dependencies
+}
+
+// extractDependenciesWithPriority extracts dependencies using lock file priority system
+// Priority 1: uv.lock (resolved versions)
+// Priority 2: poetry.lock (resolved versions)
+// Priority 3: pyproject.toml (version ranges as fallback)
+func extractDependenciesWithPriority(currentPath, projectName, pyprojectContent string, provider types.Provider) []types.Dependency {
+	// Check if lock files are enabled
+	if !components.UseLockFiles() {
+		dependencies := parseDependencies(pyprojectContent)
+		for i := range dependencies {
+			dependencies[i].SourceFile = "pyproject.toml"
+		}
+		return dependencies
+	}
+
+	// Priority 1: Check for uv.lock
+	if uvLockContent, err := provider.ReadFile(filepath.Join(currentPath, "uv.lock")); err == nil && len(uvLockContent) > 0 {
+		deps := parsers.ParseUvLock(uvLockContent, projectName)
+		if len(deps) > 0 {
+			return deps
+		}
+	}
+
+	// Priority 2: Check for poetry.lock
+	if poetryLockContent, err := provider.ReadFile(filepath.Join(currentPath, "poetry.lock")); err == nil && len(poetryLockContent) > 0 {
+		deps := parsers.ParsePoetryLock(poetryLockContent, pyprojectContent)
+		if len(deps) > 0 {
+			return deps
+		}
+	}
+
+	// Priority 3: Fallback to pyproject.toml
+	dependencies := parseDependencies(pyprojectContent)
+
+	// Add source file information
+	for i := range dependencies {
+		dependencies[i].SourceFile = "pyproject.toml"
 	}
 
 	return dependencies

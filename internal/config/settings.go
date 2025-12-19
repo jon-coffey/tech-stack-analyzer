@@ -28,6 +28,7 @@ type Settings struct {
 	CodeStatsPerComponent    bool     // Enable per-component code statistics (disabled by default)
 	RootID                   string   // Override random root ID for deterministic scans
 	PrimaryLanguageThreshold float64  // Minimum percentage for primary languages (default 0.05 = 5%)
+	UseLockFiles             bool     // Use lock files for dependency resolution (default true)
 
 	// Logging
 	LogLevel  slog.Level
@@ -53,6 +54,7 @@ func DefaultSettings() *Settings {
 		LogFormat:                "text",
 		LogFile:                  "",
 		PrimaryLanguageThreshold: 0.05, // 5% threshold for primary languages
+		UseLockFiles:             true, // Lock files enabled by default
 	}
 }
 
@@ -123,6 +125,10 @@ func LoadSettingsFromEnvironment() *Settings {
 
 	if logFile := os.Getenv("STACK_ANALYZER_LOG_FILE"); logFile != "" {
 		settings.LogFile = logFile
+	}
+
+	if useLockFiles := os.Getenv("STACK_ANALYZER_USE_LOCK_FILES"); useLockFiles != "" {
+		settings.UseLockFiles = strings.ToLower(useLockFiles) != "false"
 	}
 
 	return settings

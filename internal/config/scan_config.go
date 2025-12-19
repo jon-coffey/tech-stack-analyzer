@@ -29,6 +29,7 @@ type ScanOptions struct {
 	NoCodeStats              bool     `yaml:"no_code_stats,omitempty" json:"no_code_stats,omitempty" default:"false"`
 	CodeStatsPerComponent    bool     `yaml:"component_code_stats,omitempty" json:"component_code_stats,omitempty" default:"false"`
 	PrimaryLanguageThreshold float64  `yaml:"primary_language_threshold,omitempty" json:"primary_language_threshold,omitempty" default:"0.05"`
+	UseLockFiles             *bool    `yaml:"use_lock_files,omitempty" json:"use_lock_files,omitempty"` // nil = default (true), explicit false disables
 }
 
 // ScanConfigFile represents the external scan configuration file
