@@ -44,3 +44,23 @@ func ShouldAddPrimaryTech(rule types.Rule) bool {
 	// Priority 2: Use current logic - if component is created, add primary tech
 	return ShouldCreateComponent(rule)
 }
+
+// ShouldCreateEdges determines if a rule should create edges to its components
+// Returns true if edges should be created, false otherwise
+func ShouldCreateEdges(rule types.Rule) bool {
+	// Priority 1: Check categories configuration from categories.yaml
+	if categoriesConfig != nil {
+		if typeDef, exists := categoriesConfig.Categories[rule.Type]; exists {
+			// If create_edges is explicitly set, use that value
+			if typeDef.CreateEdges != nil {
+				return *typeDef.CreateEdges
+			}
+			// Default to true for components that are not hosting/cloud
+			// This maintains backward compatibility
+			return rule.Type != "hosting" && rule.Type != "cloud"
+		}
+	}
+
+	// Default: If type not found in categories.yaml, use hard-coded logic for backward compatibility
+	return rule.Type != "hosting" && rule.Type != "cloud"
+}

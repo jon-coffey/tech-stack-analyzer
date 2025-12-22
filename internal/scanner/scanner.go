@@ -959,8 +959,8 @@ func (s *Scanner) findImplicitComponent(payload *types.Payload, rule types.Rule,
 	// Add the component as a child
 	payload.AddChild(component)
 
-	// Add edges for non-hosting/cloud types if requested (like TypeScript: if (ref.type !== 'hosting' && ref.type !== 'cloud'))
-	if addEdges && rule.Type != "hosting" && rule.Type != "cloud" {
+	// Add edges if configured to do so
+	if addEdges && ShouldCreateEdges(rule) {
 		payload.AddEdges(component)
 	}
 }

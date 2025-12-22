@@ -219,8 +219,8 @@ func (d *ComponentDetector) createImplicitComponentForTech(payload *types.Payloa
 			// Add the component as a child
 			payload.AddChild(component)
 
-			// Add edges for non-hosting/cloud types (like TypeScript: if (ref.type !== 'hosting' && ref.type !== 'cloud'))
-			if rule.Type != "hosting" && rule.Type != "cloud" {
+			// Add edges if configured to do so
+			if ShouldCreateEdges(rule) {
 				payload.AddEdges(component)
 			}
 			return

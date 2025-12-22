@@ -86,6 +86,7 @@ func (c *ContentRule) GetType() string {
 // CategoryDefinition represents a technology category configuration
 type CategoryDefinition struct {
 	IsComponent bool   `yaml:"is_component" json:"is_component"`
+	CreateEdges *bool  `yaml:"create_edges,omitempty" json:"create_edges,omitempty"`
 	Description string `yaml:"description,omitempty" json:"description,omitempty"`
 }
 

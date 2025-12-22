@@ -10,14 +10,17 @@ categories:
 
   database:
     is_component: true
+    create_edges: true
     description: "Database systems (PostgreSQL, MongoDB, Redis, etc.)"
   
   storage:
     is_component: true
+    create_edges: true
     description: "Storage services (S3, Cloudinary, etc.)"
   
   messaging:
     is_component: true
+    create_edges: true
     description: "Message brokers and queues (Kafka, RabbitMQ, SQS, etc.)"
   
   containerization:
@@ -35,10 +38,12 @@ categories:
   # Hosting & Cloud - CREATE components
   hosting:
     is_component: true
+    create_edges: false
     description: "Hosting platforms (Vercel, Netlify, AWS, etc.)"
   
   cloud:
     is_component: true
+    create_edges: false
     description: "Cloud providers (AWS, GCP, Azure, etc.)"
   
   # Services - CREATE components
