@@ -34,8 +34,6 @@ type Payload struct {
 // Edge represents a relationship between components
 type Edge struct {
 	Target *Payload `json:"target"`
-	Read   bool     `json:"read"`
-	Write  bool     `json:"write"`
 }
 
 // PrimaryLanguage represents a primary programming language (top languages by lines of code)
@@ -64,8 +62,6 @@ func (e Edge) MarshalJSON() ([]byte, error) {
 	// Create a map to match the exact TypeScript format
 	edgeMap := map[string]interface{}{
 		"target": targetID,
-		"read":   e.Read,
-		"write":  e.Write,
 	}
 
 	return json.Marshal(edgeMap)
@@ -512,8 +508,6 @@ func (p *Payload) AddLicense(license License) {
 func (p *Payload) AddEdges(target *Payload) {
 	edge := Edge{
 		Target: target,
-		Read:   true,
-		Write:  true,
 	}
 
 	p.Edges = append(p.Edges, edge)

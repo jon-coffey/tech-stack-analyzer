@@ -176,12 +176,6 @@
                         "properties": {
                             "target": {
                                 "type": "string"
-                            },
-                            "read": {
-                                "type": "boolean"
-                            },
-                            "write": {
-                                "type": "boolean"
                             }
                         },
                         "required": [

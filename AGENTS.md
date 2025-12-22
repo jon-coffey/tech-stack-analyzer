@@ -18,7 +18,7 @@ AI coding agents: Follow these rules strictly when working on Tech Stack Analyze
 cmd/scanner/           # CLI entry point
 internal/
 ├── provider/          # File system abstraction
-├── rules/core/        # Embedded YAML rules (700+ files)
+├── rules/techs/       # Embedded YAML rules (700+ files)
 ├── scanner/           # Core scanning logic
 │   ├── components/    # Technology-specific detectors
 │   ├── matchers/      # Pattern matching
@@ -34,6 +34,33 @@ task fct                # format + check + test (run before commit)
 task pre-commit:run     # Run pre-commit hooks
 task run -- /path       # Test scanner on directory
 ```
+
+## Configuration
+
+The scanner supports configuration via `.stack-analyzer.yml` in project root:
+
+```yaml
+# Custom properties added to metadata
+properties:
+  product: "My Product Name"
+  team: "Platform Engineering"
+  owner: "engineering@company.com"
+
+# Files and directories to exclude
+exclude:
+  - "node_modules"
+  - "vendor"
+  - "dist"
+  - "build"
+  - ".git"
+```
+
+## Testing Guidelines
+
+- **Test projects shall be created in a temp directory like "/tmp"**
+- Use `/tmp/test-project` or similar paths for temporary test files
+- Clean up test files after verification
+- Never create test files in the main project directory
 
 ## Before Making Repository Public
 
@@ -52,7 +79,7 @@ task run -- /path       # Test scanner on directory
 
 ## Adding Technology Rules
 
-Create YAML in `internal/rules/core/{category}/`:
+Create YAML in `internal/rules/techs/{category}/`:
 ```yaml
 tech: "technology-name"
 name: "Display Name"
@@ -67,7 +94,7 @@ dependencies:
 **Process:**
 1. Choose category (32 available: `ai/`, `analytics/`, `application/`, `automation/`, `build/`, `ci/`, `cloud/`, `cms/`, `collaboration/`, `communication/`, `crm/`, `database/`, `etl/`, `framework/`, `hosting/`, `infrastructure/`, `language/`, `misc/`, `monitoring/`, `network/`, `notification/`, `payment/`, `queue/`, `runtime/`, `saas/`, `security/`, `ssg/`, `storage/`, `test/`, `tool/`, `ui/`, `validation/`)
 2. Create YAML file
-3. Validate: `yamllint internal/rules/core/{category}/{file}.yaml`
+3. Validate: `yamllint internal/rules/techs/{category}/{file}.yaml`
 4. Test: `task run -- /test/project`
 5. Run: `task fct`
 
@@ -132,6 +159,8 @@ func TestDetector(t *testing.T) {
 - Use conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`
 - Update README for user-facing changes
 - NEVER push to remote without explicit user permission
+- If we change structure of the output, `schemas/stack-analyzer-output.json` needs to be updated
+- After updating `schemas/stack-analyzer-output.json` schema, the example outputs shall be re-created using `task build:examples`
 
 ### Security
 - No path traversal, no `exec.Command`, no hardcoded secrets
@@ -160,7 +189,7 @@ Must have: reproducible benchmarks, >10% improvement, real-world validation.
 **Build fails:** `task clean && go mod tidy && task build`  
 **Tests fail:** `go test -v ./path/to/package`  
 **Lint fails:** `task format && golangci-lint run --fix`  
-**Rule not detected:** Validate YAML, check file is in `core/`, test with `task run -- /path`
+**Rule not detected:** Validate YAML, check file is in `techs/`, test with `task run -- /path`
 
 ## Git Workflow
 
