@@ -45,6 +45,7 @@ type MavenProject struct {
 	GroupId              string                    `xml:"groupId"`
 	ArtifactId           string                    `xml:"artifactId"`
 	Version              string                    `xml:"version"`
+	Packaging            string                    `xml:"packaging"`
 	Parent               MavenParent               `xml:"parent"`
 	Dependencies         MavenDependencies         `xml:"dependencies"`
 	DependencyManagement MavenDependencyManagement `xml:"dependencyManagement"`
@@ -196,23 +197,25 @@ func (p *MavenParser) ParsePomXMLWithProvider(content string, pomDir string, pro
 		for _, dep := range profile.Dependencies.Dependencies {
 			if dep.GroupId != "" && dep.ArtifactId != "" {
 				dependencies = append(dependencies, types.Dependency{
-					Type:    "maven",
-					Name:    dep.GroupId + ":" + dep.ArtifactId,
-					Version: p.resolveVersion(dep.Version, properties),
-					Scope:   mapMavenScope(dep.Scope),
+					Type:     "maven",
+					Name:     dep.GroupId + ":" + dep.ArtifactId,
+					Version:  p.resolveVersion(dep.Version, properties),
+					Scope:    mapMavenScope(dep.Scope),
+					Metadata: p.buildMavenMetadata(dep),
 				})
 			}
 		}
 	}
 
-	// Build dependencies list from <dependencies> section
+	// Process dependencies from main dependencies section
 	for _, dep := range project.Dependencies.Dependencies {
 		if dep.GroupId != "" && dep.ArtifactId != "" {
 			dependencies = append(dependencies, types.Dependency{
-				Type:    "maven",
-				Name:    dep.GroupId + ":" + dep.ArtifactId,
-				Version: p.resolveVersion(dep.Version, properties),
-				Scope:   mapMavenScope(dep.Scope),
+				Type:     "maven",
+				Name:     dep.GroupId + ":" + dep.ArtifactId,
+				Version:  p.resolveVersion(dep.Version, properties),
+				Scope:    mapMavenScope(dep.Scope),
+				Metadata: p.buildMavenMetadata(dep),
 			})
 		}
 	}
@@ -259,6 +262,46 @@ func (p *MavenParser) parseDependencyManagement(deps []MavenDependency, properti
 	return dependencies
 }
 
+// buildMavenMetadata creates metadata map for Maven dependencies with type, classifier, optional, and exclusions
+func (p *MavenParser) buildMavenMetadata(dep MavenDependency) map[string]interface{} {
+	metadata := make(map[string]interface{})
+
+	// Add type if not default jar
+	if dep.Type != "" && dep.Type != "jar" {
+		metadata["type"] = dep.Type
+	}
+
+	// Add classifier if present
+	if dep.Classifier != "" {
+		metadata["classifier"] = dep.Classifier
+	}
+
+	// Add optional flag if true
+	if dep.Optional {
+		metadata["optional"] = true
+	}
+
+	// Add exclusions if present
+	if len(dep.Exclusions) > 0 {
+		exclusions := make([]string, 0, len(dep.Exclusions))
+		for _, ex := range dep.Exclusions {
+			if ex.GroupId != "" && ex.ArtifactId != "" {
+				exclusions = append(exclusions, ex.GroupId+":"+ex.ArtifactId)
+			}
+		}
+		if len(exclusions) > 0 {
+			metadata["exclusions"] = exclusions
+		}
+	}
+
+	// Return nil if no metadata to add
+	if len(metadata) == 0 {
+		return nil
+	}
+
+	return metadata
+}
+
 // parsePluginDependencies extracts dependencies from Maven plugins (Step 2)
 // Plugin dependencies are build-time dependencies used by Maven plugins
 func (p *MavenParser) parsePluginDependencies(plugins []MavenPlugin, properties map[string]string) []types.Dependency {
@@ -268,10 +311,11 @@ func (p *MavenParser) parsePluginDependencies(plugins []MavenPlugin, properties 
 		for _, dep := range plugin.Dependencies {
 			if dep.GroupId != "" && dep.ArtifactId != "" {
 				dependencies = append(dependencies, types.Dependency{
-					Type:    "maven",
-					Name:    dep.GroupId + ":" + dep.ArtifactId,
-					Version: p.resolveVersion(dep.Version, properties),
-					Scope:   types.ScopeBuild, // Plugin dependencies are build-time
+					Type:     "maven",
+					Name:     dep.GroupId + ":" + dep.ArtifactId,
+					Version:  p.resolveVersion(dep.Version, properties),
+					Scope:    types.ScopeBuild, // Plugin dependencies are build-time
+					Metadata: p.buildMavenMetadata(dep),
 				})
 			}
 		}

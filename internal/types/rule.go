@@ -36,27 +36,38 @@ type Rule struct {
 
 // Dependency represents a dependency pattern (struct for YAML, but marshals as array for JSON)
 type Dependency struct {
-	Type       string `yaml:"type" json:"type"`
-	Name       string `yaml:"name" json:"name"`
-	Version    string `yaml:"version,omitempty" json:"version,omitempty"`
-	SourceFile string `yaml:"source_file,omitempty" json:"source_file,omitempty"`
-	Scope      string `yaml:"scope,omitempty" json:"scope,omitempty"`
+	Type       string                 `yaml:"type" json:"type"`
+	Name       string                 `yaml:"name" json:"name"`
+	Version    string                 `yaml:"version,omitempty" json:"version,omitempty"`
+	SourceFile string                 `yaml:"source_file,omitempty" json:"source_file,omitempty"`
+	Scope      string                 `yaml:"scope,omitempty" json:"scope,omitempty"`
+	Metadata   map[string]interface{} `yaml:"metadata,omitempty" json:"metadata,omitempty"` // Package-specific metadata (Maven: type, classifier, optional, exclusions)
 }
 
-// MarshalJSON converts Dependency struct to array format [type, name, version, scope?, source?]
+// MarshalJSON converts Dependency struct to array format [type, name, version, scope?, metadata?]
 // Format rules:
-// - 3 elements: [type, name, version] - no scope, no source
-// - 4 elements: [type, name, version, scope] - has scope, no source
-// - 5 elements: [type, name, version, scope, source] - has source (scope may be "" if unknown)
+// - 3 elements: [type, name, version] - no scope, no metadata
+// - 4 elements: [type, name, version, scope] - has scope, no metadata
+// - 5 elements: [type, name, version, scope, metadata] - has metadata object (scope may be "")
+// - 5 elements: [type, name, version, scope, source] - has source file (legacy, when SourceFile is set)
 func (d Dependency) MarshalJSON() ([]byte, error) {
+	// Priority 1: Metadata object (new format for package-specific fields)
+	if len(d.Metadata) > 0 {
+		// 5 elements: [type, name, version, scope, {metadata}]
+		return json.Marshal([]interface{}{d.Type, d.Name, d.Version, d.Scope, d.Metadata})
+	}
+	// Priority 2: SourceFile (legacy format, kept for backward compatibility)
 	if d.SourceFile != "" {
-		// 5 elements: has source (scope may be empty)
+		// 5 elements: [type, name, version, scope, source]
 		return json.Marshal([]string{d.Type, d.Name, d.Version, d.Scope, d.SourceFile})
-	} else if d.Scope != "" {
-		// 4 elements: has scope, no source
+	}
+	// Priority 3: Scope only
+	if d.Scope != "" {
+		// 4 elements: [type, name, version, scope]
 		return json.Marshal([]string{d.Type, d.Name, d.Version, d.Scope})
 	}
-	// 3 elements: no scope, no source
+	// Default: Basic format
+	// 3 elements: [type, name, version]
 	return json.Marshal([]string{d.Type, d.Name, d.Version})
 }
 
