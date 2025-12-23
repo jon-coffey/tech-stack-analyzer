@@ -83,21 +83,23 @@ func (p *ConanParser) ParseConanDependency(depString string, scope string) types
 		name := parts[0]
 		version := strings.Join(parts[1:], "/")
 		return types.Dependency{
-			Name:    name,
-			Version: version,
-			Type:    "conan",
-			Scope:   scope,
-			Direct:  true,
+			Name:     name,
+			Version:  version,
+			Type:     "conan",
+			Scope:    scope,
+			Direct:   true,
+			Metadata: types.NewMetadata("conanfile.txt"),
 		}
 	}
 
 	// Fallback if no version found
 	return types.Dependency{
-		Name:    depString,
-		Version: "",
-		Type:    "conan",
-		Scope:   scope,
-		Direct:  true,
+		Name:     depString,
+		Version:  "",
+		Type:     "conan",
+		Scope:    scope,
+		Direct:   true,
+		Metadata: types.NewMetadata("conanfile.txt"),
 	}
 }
 

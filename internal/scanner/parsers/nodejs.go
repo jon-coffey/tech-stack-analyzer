@@ -60,15 +60,21 @@ func (p *NodeJSParser) CreateDependencies(pkg *PackageJSON, depNames []string) [
 	var dependencies []types.Dependency
 
 	for _, name := range depNames {
+		// Determine version and scope in single pass
+		scope := types.ScopeProd
 		version := pkg.Dependencies[name]
 		if version == "" {
 			version = pkg.DevDependencies[name]
+			scope = types.ScopeDev
 		}
 
 		dependencies = append(dependencies, types.Dependency{
-			Type:    "npm",
-			Name:    name,
-			Version: version,
+			Type:     "npm",
+			Name:     name,
+			Version:  version,
+			Scope:    scope,
+			Direct:   true,
+			Metadata: types.NewMetadata("package.json"),
 		})
 	}
 

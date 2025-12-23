@@ -18,6 +18,14 @@ const (
 	ScopeImport = "import"
 )
 
+// NewMetadata creates a new metadata map with the source field set
+// This helper eliminates code duplication across parsers
+func NewMetadata(source string) map[string]interface{} {
+	metadata := make(map[string]interface{})
+	metadata["source"] = source
+	return metadata
+}
+
 // Rule represents a technology detection rule
 type Rule struct {
 	Tech          string                 `yaml:"tech" json:"tech"`

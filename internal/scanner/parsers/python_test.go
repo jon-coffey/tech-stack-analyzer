@@ -604,23 +604,23 @@ func TestPythonParser_EnhancedFeatures(t *testing.T) {
 			name:  "PEP 508 complex requirements",
 			input: "package[extra1,extra2]>=1.0,<2.0; python_version >= '3.8'",
 			expected: []types.Dependency{
-				{Type: "python", Name: "package", Version: ">=1.0,<2.0", SourceFile: "requirements.txt"},
+				{Type: "python", Name: "package", Version: ">=1.0,<2.0", Scope: "prod", Direct: true, SourceFile: "requirements.txt"},
 			},
 		},
 		{
 			name:  "Canonical name normalization",
 			input: "Django-REST-Framework\nFlask-SQLAlchemy",
 			expected: []types.Dependency{
-				{Type: "python", Name: "django-rest-framework", Version: "latest", SourceFile: "requirements.txt"},
-				{Type: "python", Name: "flask-sqlalchemy", Version: "latest", SourceFile: "requirements.txt"},
+				{Type: "python", Name: "django-rest-framework", Version: "latest", Scope: "prod", Direct: true, SourceFile: "requirements.txt"},
+				{Type: "python", Name: "flask-sqlalchemy", Version: "latest", Scope: "prod", Direct: true, SourceFile: "requirements.txt"},
 			},
 		},
 		{
 			name:  "Comments and empty lines",
 			input: "# This is a comment\n\nrequests>=2.25.0\n# Another comment\nnumpy",
 			expected: []types.Dependency{
-				{Type: "python", Name: "requests", Version: ">=2.25.0", SourceFile: "requirements.txt"},
-				{Type: "python", Name: "numpy", Version: "latest", SourceFile: "requirements.txt"},
+				{Type: "python", Name: "requests", Version: ">=2.25.0", Scope: "prod", Direct: true, SourceFile: "requirements.txt"},
+				{Type: "python", Name: "numpy", Version: "latest", Scope: "prod", Direct: true, SourceFile: "requirements.txt"},
 			},
 		},
 	}
@@ -634,7 +634,9 @@ func TestPythonParser_EnhancedFeatures(t *testing.T) {
 				assert.Equal(t, expectedDep.Type, result[i].Type, "Should have correct type")
 				assert.Equal(t, expectedDep.Name, result[i].Name, "Should have correct name")
 				assert.Equal(t, expectedDep.Version, result[i].Version, "Should have correct version")
-				assert.Equal(t, expectedDep.SourceFile, result[i].SourceFile, "Should have correct source file")
+				assert.Equal(t, expectedDep.Scope, result[i].Scope, "Should have correct scope")
+				assert.Equal(t, expectedDep.Direct, result[i].Direct, "Should have correct direct flag")
+				assert.Equal(t, expectedDep.SourceFile, result[i].Metadata["source"], "Should have correct source file in metadata")
 			}
 		})
 	}

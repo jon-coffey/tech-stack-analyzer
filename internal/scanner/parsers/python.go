@@ -42,11 +42,12 @@ func (p *PythonParser) ParseRequirementsTxt(content string) []types.Dependency {
 
 		if dep.Name != "" {
 			dependencies = append(dependencies, types.Dependency{
-				Type:       "python",
-				Name:       p.canonPackageName(dep.Name),
-				Version:    p.resolveVersion(dep.Constraint),
-				SourceFile: "requirements.txt",
-				Direct:     true,
+				Type:     "python",
+				Name:     p.canonPackageName(dep.Name),
+				Version:  p.resolveVersion(dep.Constraint),
+				Scope:    types.ScopeProd, // requirements.txt defaults to production
+				Direct:   true,
+				Metadata: types.NewMetadata("requirements.txt"),
 			})
 		}
 	}

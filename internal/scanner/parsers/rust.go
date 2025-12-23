@@ -174,9 +174,12 @@ func (p *RustParser) parseDependencyLine(line string) types.Dependency {
 		// Simple string version: "serde = "1.0""
 		version := strings.Trim(value, `"`)
 		return types.Dependency{
-			Type:    "cargo",
-			Name:    name,
-			Version: version,
+			Type:     "cargo",
+			Name:     name,
+			Version:  version,
+			Scope:    types.ScopeProd, // dependencies section defaults to production
+			Direct:   true,
+			Metadata: types.NewMetadata("Cargo.toml"),
 		}
 	} else if strings.HasPrefix(value, "{") && strings.HasSuffix(value, "}") {
 		// Object format: "serde = { version = "1.0", features = ["derive"] }"
@@ -255,9 +258,12 @@ func (p *RustParser) buildDependency(name string, info *dependencyInfo) types.De
 	}
 
 	return types.Dependency{
-		Type:    "cargo",
-		Name:    name,
-		Version: version,
+		Type:     "cargo",
+		Name:     name,
+		Version:  version,
+		Scope:    types.ScopeProd, // dependencies section defaults to production
+		Direct:   true,
+		Metadata: types.NewMetadata("Cargo.toml"),
 	}
 }
 
