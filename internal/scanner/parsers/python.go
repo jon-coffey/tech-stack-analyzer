@@ -1,14 +1,15 @@
 package parsers
 
 import (
+	"bytes"
 	"fmt"
-	"regexp"
 	"strings"
 
+	"github.com/petrarca/tech-stack-analyzer/internal/scanner/semver"
 	"github.com/petrarca/tech-stack-analyzer/internal/types"
 )
 
-// PythonParser handles Python-specific file parsing (pyproject.toml, requirements.txt)
+// PythonParser handles Python-specific file parsing with deps.dev patterns
 type PythonParser struct{}
 
 // NewPythonParser creates a new Python parser
@@ -16,21 +17,17 @@ func NewPythonParser() *PythonParser {
 	return &PythonParser{}
 }
 
-// ParsePyprojectTOML parses pyproject.toml and extracts dependencies with versions
+// ParsePyprojectTOML parses pyproject.toml with enhanced dependency parsing
 func (p *PythonParser) ParsePyprojectTOML(content string) []types.Dependency {
-	parser := &pyprojectParser{
-		lineReg: regexp.MustCompile(`(^([a-zA-Z0-9._-]+)$|^([a-zA-Z0-9._-]+)(([>=]+)([0-9.]+)))`),
+	parser := &pyprojectParserEnhanced{
+		enhancedParser: p,
 	}
 	return parser.parse(content)
 }
 
-// ParseRequirementsTxt parses requirements.txt and extracts package names with versions
-// Matches TypeScript logic: dependencies.push(['python', name, version || 'latest'])
+// ParseRequirementsTxt parses requirements.txt with full PEP 508 compliance
 func (p *PythonParser) ParseRequirementsTxt(content string) []types.Dependency {
 	var dependencies []types.Dependency
-	// Match TypeScript regex exactly: /(^([a-zA-Z0-9._-]+)$|^([a-zA-Z0-9._-]+)(([>=]+)([0-9.]+)))/
-	// Group 2/3: name, Group 5: version (without comparison operator)
-	lineReg := regexp.MustCompile(`(^([a-zA-Z0-9._-]+)$|^([a-zA-Z0-9._-]+)(([>=]+)([0-9.]+)))`)
 
 	for _, line := range strings.Split(content, "\n") {
 		line = strings.TrimSpace(line)
@@ -38,27 +35,17 @@ func (p *PythonParser) ParseRequirementsTxt(content string) []types.Dependency {
 			continue
 		}
 
-		match := lineReg.FindStringSubmatch(line)
-		if match == nil {
-			continue
+		dep, err := p.parsePEP508Dependency(line)
+		if err != nil {
+			continue // Skip invalid lines
 		}
 
-		// Extract name (group 2/3) and version (group 6 or 'latest') to match TypeScript exactly
-		name := match[2]
-		if name == "" {
-			name = match[3]
-		}
-		version := match[6]
-		if version == "" {
-			version = "latest"
-		}
-
-		if name != "" {
+		if dep.Name != "" {
 			dependencies = append(dependencies, types.Dependency{
 				Type:       "python",
-				Name:       name,
-				Version:    version,
-				SourceFile: "pyproject.toml",
+				Name:       p.canonPackageName(dep.Name),
+				Version:    p.resolveVersion(dep.Constraint),
+				SourceFile: "requirements.txt",
 			})
 		}
 	}
@@ -66,7 +53,211 @@ func (p *PythonParser) ParseRequirementsTxt(content string) []types.Dependency {
 	return dependencies
 }
 
-// ExtractProjectName extracts the project name from pyproject.toml
+// PythonDependency represents a PEP 508 compliant dependency (deps.dev pattern)
+type PythonDependency struct {
+	Name        string // Package name
+	Extras      string // [extra1,extra2]
+	Constraint  string // >=1.0,<2.0
+	Environment string // ; python_version >= "3.8"
+}
+
+// parsePEP508Dependency parses a Python requirement statement according to PEP 508
+// Based on deps.dev/util/pypi/metadata.go ParseDependency function
+func (p *PythonParser) parsePEP508Dependency(v string) (PythonDependency, error) {
+	var d PythonDependency
+	if v == "" {
+		return d, fmt.Errorf("invalid python requirement: empty string")
+	}
+
+	const whitespace = " \t" // according to the PEP this is the only allowed whitespace
+	s := strings.Trim(v, whitespace)
+
+	// Extract name - characters ending with space or start of something else
+	nameEnd := strings.IndexAny(s, whitespace+"[(;<=!~>")
+	if nameEnd == 0 {
+		return d, fmt.Errorf("invalid python requirement: empty name")
+	}
+	if nameEnd < 0 {
+		d.Name = p.canonPackageName(s)
+		return d, nil
+	}
+
+	d.Name = p.canonPackageName(s[:nameEnd])
+	s = strings.TrimLeft(s[nameEnd:], whitespace)
+
+	// Parse extras [extra1,extra2]
+	if len(s) > 0 && s[0] == '[' {
+		end := strings.IndexByte(s, ']')
+		if end < 0 {
+			return d, fmt.Errorf("invalid python requirement: %q has unterminated extras section", v)
+		}
+		d.Extras = strings.Trim(s[1:end], whitespace)
+		s = s[end+1:]
+	}
+
+	// Parse constraint
+	if len(s) > 0 && s[0] != ';' {
+		end := strings.IndexByte(s, ';')
+		if end < 0 {
+			end = len(s) // all of the remainder is the constraint
+		}
+		d.Constraint = strings.Trim(s[:end], whitespace)
+		// Remove parentheses if present
+		if strings.HasPrefix(d.Constraint, "(") && strings.HasSuffix(d.Constraint, ")") {
+			d.Constraint = d.Constraint[1 : len(d.Constraint)-1]
+		}
+		s = s[end:]
+	}
+
+	// Parse environment markers
+	if len(s) > 0 && s[0] != ';' {
+		return d, fmt.Errorf("invalid python requirement: internal parse error on %q", v)
+	}
+	if s != "" {
+		d.Environment = strings.Trim(s[1:], whitespace) // s[1] == ';'
+	}
+
+	return d, nil
+}
+
+// canonPackageName returns the canonical form of a PyPI package name
+// Based on deps.dev/util/pypi/metadata.go CanonPackageName function
+func (p *PythonParser) canonPackageName(name string) string {
+	// https://github.com/pypa/pip/blob/20.0.2/src/pip/_vendor/packaging/utils.py
+	// https://www.python.org/dev/peps/pep-503/
+	// Names may only be [-_.A-Za-z0-9].
+	// Replace runs of [-_.] with a single "-", then lowercase everything.
+	var out bytes.Buffer
+	run := false // whether a run of [-_.] has started.
+	for i := 0; i < len(name); i++ {
+		switch c := name[i]; {
+		case 'a' <= c && c <= 'z', '0' <= c && c <= '9':
+			out.WriteByte(c)
+			run = false
+		case 'A' <= c && c <= 'Z':
+			out.WriteByte(c + ('a' - 'A'))
+			run = false
+		case c == '-' || c == '_' || c == '.':
+			if !run {
+				out.WriteByte('-')
+			}
+			run = true
+		default:
+			run = false
+		}
+	}
+	return out.String()
+}
+
+// resolveVersion normalizes version strings using PEP 440 canonicalization
+func (p *PythonParser) resolveVersion(constraint string) string {
+	if constraint == "" {
+		return "latest"
+	}
+
+	// Use semver package to normalize version according to PEP 440
+	// Returns original string if parsing fails
+	return semver.Normalize(semver.PyPI, constraint)
+}
+
+// pyprojectParserEnhanced handles TOML parsing with enhanced dependency support
+type pyprojectParserEnhanced struct {
+	enhancedParser *PythonParser
+
+	inProjectSection      bool
+	inDependenciesSection bool
+	expectingDependencies bool
+	dependencies          []types.Dependency
+}
+
+func (p *pyprojectParserEnhanced) parse(content string) []types.Dependency {
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		p.processLine(line)
+	}
+	return p.dependencies
+}
+
+func (p *pyprojectParserEnhanced) processLine(line string) {
+	if p.handleSectionHeader(line) {
+		return
+	}
+	if p.handleDependencyKeyword(line) {
+		return
+	}
+	if p.shouldParseDependency(line) {
+		p.parseDependencyLine(line)
+	}
+	if p.expectingDependencies && line == "]" {
+		p.expectingDependencies = false
+	}
+}
+
+func (p *pyprojectParserEnhanced) handleSectionHeader(line string) bool {
+	if line == "[project]" {
+		p.inProjectSection = true
+		return true
+	}
+	if line == "[project.dependencies]" {
+		p.inDependenciesSection = true
+		return true
+	}
+	// Note: Poetry dependencies ([tool.poetry.dependencies]) are not currently supported
+	if strings.HasPrefix(line, "[") {
+		p.inProjectSection = false
+		p.inDependenciesSection = false
+		p.expectingDependencies = false
+		return true
+	}
+	return false
+}
+
+func (p *pyprojectParserEnhanced) handleDependencyKeyword(line string) bool {
+	if p.inProjectSection {
+		// Check for exact "dependencies" keyword followed by whitespace, =, or [
+		// This prevents matching "dependencies_extra" or similar fields
+		if line == "dependencies" ||
+			strings.HasPrefix(line, "dependencies ") ||
+			strings.HasPrefix(line, "dependencies=") ||
+			strings.HasPrefix(line, "dependencies[") {
+			p.expectingDependencies = true
+			return true
+		}
+	}
+	return false
+}
+
+func (p *pyprojectParserEnhanced) shouldParseDependency(line string) bool {
+	return (p.inDependenciesSection || p.expectingDependencies) &&
+		line != "" &&
+		!strings.HasPrefix(line, "#")
+}
+
+func (p *pyprojectParserEnhanced) parseDependencyLine(line string) {
+	// Clean quotes and trailing commas from dependency line
+	// Note: line is already trimmed in parse() before processLine() is called
+	line = strings.TrimPrefix(line, `"`)
+	line = strings.TrimSuffix(line, `",`)
+	line = strings.TrimSuffix(line, `"`)
+
+	// Use enhanced PEP 508 parsing
+	dep, err := p.enhancedParser.parsePEP508Dependency(line)
+	if err != nil {
+		return
+	}
+
+	if dep.Name != "" {
+		p.dependencies = append(p.dependencies, types.Dependency{
+			Type:       "python",
+			Name:       p.enhancedParser.canonPackageName(dep.Name),
+			Version:    p.enhancedParser.resolveVersion(dep.Constraint),
+			SourceFile: "pyproject.toml",
+		})
+	}
+}
+
+// ExtractProjectName extracts the project name from pyproject.toml (same as original)
 func (p *PythonParser) ExtractProjectName(content string) string {
 	lines := strings.Split(content, "\n")
 	inProjectSection := false
@@ -103,9 +294,9 @@ func (p *PythonParser) ExtractProjectName(content string) string {
 	return ""
 }
 
-// DetectLicense detects licenses from pyproject.toml content (like TypeScript)
+// DetectLicense detects licenses from pyproject.toml content (same as original)
 func (p *PythonParser) DetectLicense(content string, payload *types.Payload) {
-	// Look for license field in [project] section (like TypeScript: if ('license' in prj))
+	// Look for license field in [project] section
 	lines := strings.Split(content, "\n")
 	inProjectSection := false
 
@@ -126,10 +317,8 @@ func (p *PythonParser) DetectLicense(content string, payload *types.Payload) {
 
 		// Look for license field in project section
 		if inProjectSection && strings.HasPrefix(line, "license") {
-			// Extract license value (like TypeScript: const tmp = typeof prj.license === 'string' ? prj.license : prj.license?.text)
 			licenseValue := p.extractLicenseValue(line)
 			if licenseValue != "" {
-				// Simple license detection for common licenses (like spdx-expression-parse)
 				if p.addLicenseIfMatch(licenseValue, payload) {
 					return // Found license, exit
 				}
@@ -140,14 +329,12 @@ func (p *PythonParser) DetectLicense(content string, payload *types.Payload) {
 
 // extractLicenseValue extracts license value from license line
 func (p *PythonParser) extractLicenseValue(line string) string {
-	// Handle formats: license = "MIT", license = 'MIT', license = MIT
 	afterEqual := strings.SplitN(line, "=", 2)
 	if len(afterEqual) < 2 {
 		return ""
 	}
 
 	licenseValue := strings.TrimSpace(afterEqual[1])
-	// Remove quotes if present
 	licenseValue = strings.Trim(licenseValue, `"`)
 	licenseValue = strings.Trim(licenseValue, `'`)
 
@@ -156,10 +343,8 @@ func (p *PythonParser) extractLicenseValue(line string) string {
 
 // addLicenseIfMatch adds license if it matches known licenses
 func (p *PythonParser) addLicenseIfMatch(licenseText string, payload *types.Payload) bool {
-	// Convert to lowercase for comparison
 	licenseText = strings.ToLower(strings.TrimSpace(licenseText))
 
-	// Map common license texts to standard names (like SPDX detection)
 	licenseMap := map[string]string{
 		"mit":          "MIT",
 		"apache-2.0":   "Apache-2.0",
@@ -175,138 +360,30 @@ func (p *PythonParser) addLicenseIfMatch(licenseText string, payload *types.Payl
 		license := types.License{
 			LicenseName:   standardLicense,
 			DetectionType: "file_based",
-			SourceFile:    "setup.py",
+			SourceFile:    "pyproject.toml",
 			Confidence:    1.0,
 		}
 		payload.AddLicense(license)
-		reason := fmt.Sprintf("license detected: %s (from setup.py)", standardLicense)
+		reason := fmt.Sprintf("license detected: %s (from pyproject.toml)", standardLicense)
 		payload.AddLicenseReason(reason)
 		return true
 	}
 
-	// Check for exact match with standard license
 	standardLicenses := []string{"MIT", "Apache-2.0", "GPL-3.0", "BSD-3-Clause", "ISC", "BSD"}
 	for _, licenseName := range standardLicenses {
 		if strings.EqualFold(licenseText, licenseName) {
 			license := types.License{
 				LicenseName:   licenseName,
 				DetectionType: "file_based",
-				SourceFile:    "setup.py",
+				SourceFile:    "pyproject.toml",
 				Confidence:    1.0,
 			}
 			payload.AddLicense(license)
-			reason := fmt.Sprintf("license detected: %s (from setup.py)", licenseName)
+			reason := fmt.Sprintf("license detected: %s (from pyproject.toml)", licenseName)
 			payload.AddLicenseReason(reason)
 			return true
 		}
 	}
 
 	return false
-}
-
-// pyprojectParser handles TOML parsing state
-type pyprojectParser struct {
-	lineReg               *regexp.Regexp
-	inProjectSection      bool
-	inDependenciesSection bool
-	expectingDependencies bool
-	dependencies          []types.Dependency
-}
-
-func (p *pyprojectParser) parse(content string) []types.Dependency {
-	lines := strings.Split(content, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		p.processLine(line)
-	}
-	return p.dependencies
-}
-
-func (p *pyprojectParser) processLine(line string) {
-	if p.handleSectionHeader(line) {
-		return
-	}
-	if p.handleDependencyKeyword(line) {
-		return
-	}
-	if p.shouldParseDependency(line) {
-		p.parseDependencyLine(line)
-	}
-	if p.expectingDependencies && line == "]" {
-		p.expectingDependencies = false
-	}
-}
-
-func (p *pyprojectParser) handleSectionHeader(line string) bool {
-	if line == "[project]" {
-		p.inProjectSection = true
-		return true
-	}
-	if line == "[project.dependencies]" || line == "[tool.poetry.dependencies]" {
-		p.inDependenciesSection = true
-		return true
-	}
-	if strings.HasPrefix(line, "[") {
-		p.inProjectSection = false
-		p.inDependenciesSection = false
-		p.expectingDependencies = false
-		return true
-	}
-	return false
-}
-
-func (p *pyprojectParser) handleDependencyKeyword(line string) bool {
-	if p.inProjectSection && strings.HasPrefix(line, "dependencies") {
-		p.expectingDependencies = true
-		return true
-	}
-	return false
-}
-
-func (p *pyprojectParser) shouldParseDependency(line string) bool {
-	return (p.inDependenciesSection || p.expectingDependencies) &&
-		line != "" &&
-		!strings.HasPrefix(line, "#")
-}
-
-func (p *pyprojectParser) parseDependencyLine(line string) {
-	line = p.cleanLine(line)
-	match := p.lineReg.FindStringSubmatch(line)
-	if match == nil {
-		return
-	}
-
-	name := p.extractName(match)
-	version := p.extractVersion(match)
-
-	if name != "" {
-		p.dependencies = append(p.dependencies, types.Dependency{
-			Type:       "python",
-			Name:       name,
-			Version:    version,
-			SourceFile: "requirements.txt",
-		})
-	}
-}
-
-func (p *pyprojectParser) cleanLine(line string) string {
-	line = strings.TrimSpace(line)
-	line = strings.TrimPrefix(line, `"`)
-	line = strings.TrimSuffix(line, `",`)
-	line = strings.TrimSuffix(line, `"`)
-	return line
-}
-
-func (p *pyprojectParser) extractName(match []string) string {
-	if match[2] != "" {
-		return match[2]
-	}
-	return match[3]
-}
-
-func (p *pyprojectParser) extractVersion(match []string) string {
-	if match[6] != "" {
-		return match[6]
-	}
-	return "latest"
 }
