@@ -162,8 +162,8 @@ package.with.dots==2.0.0
 `,
 			expectedDeps: []types.Dependency{
 				{Type: "python", Name: "package-name", Version: "latest"},
-				{Type: "python", Name: "another_package", Version: ">=1.0.0"},
-				{Type: "python", Name: "package.with.dots", Version: "==2.0.0"},
+				{Type: "python", Name: "another-package", Version: ">=1.0.0"},   // Canonical: underscore → hyphen
+				{Type: "python", Name: "package-with-dots", Version: "==2.0.0"}, // Canonical: dots → hyphens
 			},
 		},
 	}
