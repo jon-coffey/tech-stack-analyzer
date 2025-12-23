@@ -154,9 +154,18 @@ func (p *GradleParser) parseGradleDependency(line string) *types.Dependency {
 	group := parts[0]
 	artifact := parts[1]
 	version := "latest"
+	classifier := ""
+	extension := ""
 
+	// Handle different parts of the dependency notation
 	if len(parts) >= 3 && parts[2] != "" {
 		version = parts[2]
+	}
+	if len(parts) >= 4 && parts[3] != "" {
+		classifier = parts[3]
+	}
+	if len(parts) >= 5 && parts[4] != "" {
+		extension = parts[4]
 	}
 
 	dependencyName := group + ":" + artifact
@@ -175,10 +184,33 @@ func (p *GradleParser) parseGradleDependency(line string) *types.Dependency {
 	}
 
 	return &types.Dependency{
-		Type:    DependencyTypeGradle,
-		Name:    dependencyName,
-		Version: version,
-		Scope:   scope,
-		Direct:  true, // All Gradle dependencies are direct (from build.gradle)
+		Type:     DependencyTypeGradle,
+		Name:     dependencyName,
+		Version:  version,
+		Scope:    scope,
+		Direct:   true, // All Gradle dependencies are direct (from build.gradle)
+		Metadata: p.buildGradleMetadata(depType, classifier, extension),
 	}
+}
+
+// buildGradleMetadata creates metadata map for Gradle dependencies
+func (p *GradleParser) buildGradleMetadata(depType, classifier, extension string) map[string]interface{} {
+	metadata := types.NewMetadata(MetadataSourceBuildGradle)
+
+	// Add Gradle configuration type (implementation, api, etc.)
+	if depType != "" {
+		metadata["configuration"] = depType
+	}
+
+	// Add classifier if present (e.g., sources, javadoc)
+	if classifier != "" {
+		metadata["classifier"] = classifier
+	}
+
+	// Add extension/type if not default jar
+	if extension != "" && extension != "jar" {
+		metadata["type"] = extension
+	}
+
+	return metadata
 }
