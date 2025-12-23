@@ -18,11 +18,24 @@ func (d *Detector) Detect(files []types.File, currentPath, basePath string, prov
 	var results []*types.Payload
 
 	// Check for Gemfile (component - creates named payload)
+	var gemfileExists, gemfileLockExists bool
 	for _, file := range files {
 		if file.Name == "Gemfile" {
-			payload := d.detectGemfile(file, currentPath, basePath, provider, depDetector)
-			if payload != nil {
-				results = append(results, payload)
+			gemfileExists = true
+		}
+		if file.Name == "Gemfile.lock" {
+			gemfileLockExists = true
+		}
+	}
+
+	// Process Gemfile if it exists
+	if gemfileExists {
+		for _, file := range files {
+			if file.Name == "Gemfile" {
+				payload := d.detectGemfile(file, currentPath, basePath, provider, depDetector, gemfileLockExists)
+				if payload != nil {
+					results = append(results, payload)
+				}
 			}
 		}
 	}
@@ -30,7 +43,7 @@ func (d *Detector) Detect(files []types.File, currentPath, basePath string, prov
 	return results
 }
 
-func (d *Detector) detectGemfile(file types.File, currentPath, basePath string, provider types.Provider, depDetector components.DependencyDetector) *types.Payload {
+func (d *Detector) detectGemfile(file types.File, currentPath, basePath string, provider types.Provider, depDetector components.DependencyDetector, gemfileLockExists bool) *types.Payload {
 	content, err := provider.ReadFile(filepath.Join(currentPath, file.Name))
 	if err != nil {
 		return nil
@@ -54,9 +67,22 @@ func (d *Detector) detectGemfile(file types.File, currentPath, basePath string, 
 	// Set tech field to ruby
 	payload.AddPrimaryTech("ruby")
 
-	// Parse Gemfile for dependencies using parser
-	rubyParser := parsers.NewRubyParser()
-	dependencies := rubyParser.ParseGemfile(string(content))
+	var dependencies []types.Dependency
+
+	// Prefer Gemfile.lock for exact versions if available
+	if gemfileLockExists {
+		lockContent, err := provider.ReadFile(filepath.Join(currentPath, "Gemfile.lock"))
+		if err == nil {
+			lockParser := parsers.NewGemfileLockParser()
+			dependencies = lockParser.ParseGemfileLock(string(lockContent))
+		}
+	}
+
+	// Fallback to Gemfile if no lockfile or lockfile parsing failed
+	if len(dependencies) == 0 {
+		rubyParser := parsers.NewRubyParser()
+		dependencies = rubyParser.ParseGemfile(string(content))
+	}
 
 	// Extract dependency names for tech matching
 	var depNames []string

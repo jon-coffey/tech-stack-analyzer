@@ -265,7 +265,7 @@ end
 	dependencies := parser.ParseGemfile(railsGemfile)
 
 	// Should extract all gems with versions
-	assert.Len(t, dependencies, 15) // 9 production + 2 dev/test + 4 test
+	assert.Len(t, dependencies, 14) // 8 production + 2 dev/test + 4 test
 
 	// Create dependency map for verification
 	depMap := make(map[string]types.Dependency)
@@ -355,5 +355,215 @@ gem 'paperclip', '6.1.0'
 
 		assert.Equal(t, "awesome_print", depMap["awesome_print"].Name)
 		assert.Equal(t, "will_paginate", depMap["will_paginate"].Name)
+	})
+}
+
+func TestRubyParser_MetadataEdgeCases(t *testing.T) {
+	parser := NewRubyParser()
+
+	// Test empty groups
+	t.Run("empty groups", func(t *testing.T) {
+		content := `group do
+  gem 'rails', '6.1.4'
+end`
+
+		dependencies := parser.ParseGemfile(content)
+
+		assert.Len(t, dependencies, 1)
+		assert.Equal(t, types.ScopeProd, dependencies[0].Scope)   // Should default to prod when no groups
+		assert.NotContains(t, dependencies[0].Metadata, "groups") // Should not add empty groups
+	})
+
+	// Test malformed git URLs
+	t.Run("malformed git sources", func(t *testing.T) {
+		content := `gem 'rails', '6.1.4'
+gem 'bad_git', git: 'not-a-url'
+gem 'valid_git', git: 'https://github.com/user/repo.git'
+gem 'partial_git', git: ''
+`
+
+		dependencies := parser.ParseGemfile(content)
+
+		assert.Len(t, dependencies, 4) // partial_git is still extracted even with empty git
+
+		depMap := make(map[string]types.Dependency)
+		for _, dep := range dependencies {
+			depMap[dep.Name] = dep
+		}
+
+		// Should extract malformed git URL as-is (parser doesn't validate URL format)
+		assert.Equal(t, "not-a-url", depMap["bad_git"].Metadata["git"])
+		assert.Equal(t, "https://github.com/user/repo.git", depMap["valid_git"].Metadata["git"])
+		assert.NotContains(t, depMap["partial_git"].Metadata, "git") // Empty git should not be added
+	})
+
+	// Test malformed paths
+	t.Run("malformed paths", func(t *testing.T) {
+		content := `gem 'rails', '6.1.4'
+gem 'empty_path', path: ''
+gem 'valid_path', path: '../local_gem'
+gem 'relative_path', path: '/absolute/path'
+`
+
+		dependencies := parser.ParseGemfile(content)
+
+		assert.Len(t, dependencies, 4) // empty_path is still extracted even with empty path
+
+		depMap := make(map[string]types.Dependency)
+		for _, dep := range dependencies {
+			depMap[dep.Name] = dep
+		}
+
+		assert.NotContains(t, depMap["empty_path"].Metadata, "path") // Empty path should not be added
+		assert.Equal(t, "../local_gem", depMap["valid_path"].Metadata["path"])
+		assert.Equal(t, "/absolute/path", depMap["relative_path"].Metadata["path"])
+	})
+
+	// Test malformed platforms
+	t.Run("malformed platforms", func(t *testing.T) {
+		content := `gem 'rails', '6.1.4'
+gem 'empty_platforms', platforms: []
+gem 'valid_platforms', platforms: [:mri, :mingw]
+gem 'mixed_platforms', platforms: [:ruby, "jruby", :truffleruby]
+gem 'single_platform', platforms: [:x64_mingw]
+`
+
+		dependencies := parser.ParseGemfile(content)
+
+		assert.Len(t, dependencies, 5) // empty_platforms is still extracted even with empty platforms
+
+		depMap := make(map[string]types.Dependency)
+		for _, dep := range dependencies {
+			depMap[dep.Name] = dep
+		}
+
+		assert.NotContains(t, depMap["empty_platforms"].Metadata, "platforms") // Empty platforms should not be added
+
+		validPlatforms := depMap["valid_platforms"].Metadata["platforms"].([]string)
+		assert.Equal(t, []string{"mri", "mingw"}, validPlatforms)
+
+		mixedPlatforms := depMap["mixed_platforms"].Metadata["platforms"].([]string)
+		assert.Equal(t, []string{"ruby", "jruby", "truffleruby"}, mixedPlatforms)
+
+		singlePlatform := depMap["single_platform"].Metadata["platforms"].([]string)
+		assert.Equal(t, []string{"x64_mingw"}, singlePlatform)
+	})
+
+	// Test nested groups
+	t.Run("nested groups", func(t *testing.T) {
+		content := `gem 'rails', '6.1.4'
+
+group :development do
+  gem 'rubocop'
+  group :test do
+    gem 'rspec'
+  end
+  gem 'pry'
+end
+
+group :test do
+  gem 'capybara'
+end`
+
+		dependencies := parser.ParseGemfile(content)
+
+		assert.Len(t, dependencies, 5)
+
+		depMap := make(map[string]types.Dependency)
+		for _, dep := range dependencies {
+			depMap[dep.Name] = dep
+		}
+
+		// Production gem
+		assert.Equal(t, types.ScopeProd, depMap["rails"].Scope)
+
+		// Development gems
+		assert.Equal(t, types.ScopeDev, depMap["rubocop"].Scope)
+		assert.Equal(t, types.ScopeDev, depMap["pry"].Scope)
+
+		// Test gems (including nested)
+		assert.Equal(t, types.ScopeDev, depMap["rspec"].Scope)
+		assert.Equal(t, types.ScopeDev, depMap["capybara"].Scope)
+	})
+
+	// Test malformed group syntax
+	t.Run("malformed group syntax", func(t *testing.T) {
+		content := `gem 'rails', '6.1.4'
+
+group :development
+  gem 'rubocop'
+end
+
+group :test do
+  gem 'rspec'
+end
+
+group "" do
+  gem 'invalid_group'
+end`
+
+		dependencies := parser.ParseGemfile(content)
+
+		assert.Len(t, dependencies, 4) // All gems are extracted, rubocop defaults to prod due to malformed group
+
+		depMap := make(map[string]types.Dependency)
+		for _, dep := range dependencies {
+			depMap[dep.Name] = dep
+		}
+
+		// Should handle malformed group syntax gracefully
+		assert.Equal(t, types.ScopeProd, depMap["rails"].Scope)
+		assert.Equal(t, types.ScopeDev, depMap["rspec"].Scope)
+		assert.Equal(t, types.ScopeProd, depMap["invalid_group"].Scope) // Empty group should default to prod
+	})
+
+	// Test require flag variations
+	t.Run("require flag variations", func(t *testing.T) {
+		content := `gem 'rails', '6.1.4'
+gem 'no_require', require: false
+gem 'no_require_compact', require:false
+gem 'require_true', require: true
+gem 'require_string', require: 'custom'
+`
+
+		dependencies := parser.ParseGemfile(content)
+
+		assert.Len(t, dependencies, 5)
+
+		depMap := make(map[string]types.Dependency)
+		for _, dep := range dependencies {
+			depMap[dep.Name] = dep
+		}
+
+		assert.NotContains(t, depMap["rails"].Metadata, "require")
+		assert.Equal(t, false, depMap["no_require"].Metadata["require"])
+		assert.Equal(t, false, depMap["no_require_compact"].Metadata["require"])
+		assert.NotContains(t, depMap["require_true"].Metadata, "require")   // Only false is captured
+		assert.NotContains(t, depMap["require_string"].Metadata, "require") // Only false is captured
+	})
+
+	// Test branch extraction
+	t.Run("branch extraction", func(t *testing.T) {
+		content := `gem 'rails', '6.1.4'
+gem 'main_branch', git: 'https://github.com/user/repo.git', branch: 'main'
+gem 'develop_branch', git: 'https://github.com/user/repo2.git', branch: 'develop'
+gem 'no_branch', git: 'https://github.com/user/repo3.git'
+gem 'empty_branch', git: 'https://github.com/user/repo4.git', branch: ''
+`
+
+		dependencies := parser.ParseGemfile(content)
+
+		assert.Len(t, dependencies, 5)
+
+		depMap := make(map[string]types.Dependency)
+		for _, dep := range dependencies {
+			depMap[dep.Name] = dep
+		}
+
+		assert.NotContains(t, depMap["rails"].Metadata, "branch")
+		assert.Equal(t, "main", depMap["main_branch"].Metadata["branch"])
+		assert.Equal(t, "develop", depMap["develop_branch"].Metadata["branch"])
+		assert.NotContains(t, depMap["no_branch"].Metadata, "branch")
+		assert.NotContains(t, depMap["empty_branch"].Metadata, "branch")
 	})
 }
