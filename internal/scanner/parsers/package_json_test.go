@@ -78,9 +78,9 @@ func TestParsePackageJSONEnhanced(t *testing.T) {
 			}`,
 			expectedDeps: []types.Dependency{
 				{Type: "npm", Name: "local-pkg", Version: "workspace", SourceFile: "package.json", Scope: "prod"},
-				{Type: "npm", Name: "git-pkg", Version: "github", SourceFile: "package.json", Scope: "prod"},
+				{Type: "npm", Name: "git-pkg", Version: "github:user/repo#main", SourceFile: "package.json", Scope: "prod"},
 				{Type: "npm", Name: "file-pkg", Version: "local", SourceFile: "package.json", Scope: "prod"},
-				{Type: "npm", Name: "npm-pkg", Version: "^1.0.0", SourceFile: "package.json", Scope: "prod"},
+				{Type: "npm", Name: "npm-pkg", Version: "package@^1.0.0", SourceFile: "package.json", Scope: "prod"},
 			},
 		},
 		{

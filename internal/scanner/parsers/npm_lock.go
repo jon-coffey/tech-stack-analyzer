@@ -48,127 +48,181 @@ func ParsePackageLockWithOptions(content []byte, packageJSON *PackageJSON, optio
 		return nil
 	}
 
-	// Build maps of direct dependency names with their scopes from package.json
-	prodDeps := make(map[string]bool)
-	devDeps := make(map[string]bool)
-	peerDeps := make(map[string]bool)
-	optionalDeps := make(map[string]bool)
-
-	// Use the enhanced PackageJSON if available for better scope detection
-	if packageJSON != nil {
-		for name := range packageJSON.Dependencies {
-			prodDeps[name] = true
-		}
-		for name := range packageJSON.DevDependencies {
-			devDeps[name] = true
-		}
-		// Try to detect peer and optional dependencies if enhanced struct is available
-		if enhancedPkg, err := parseEnhancedPackageJSON(content); err == nil {
-			for name := range enhancedPkg.PeerDependencies {
-				peerDeps[name] = true
-			}
-			for name := range enhancedPkg.OptionalDependencies {
-				optionalDeps[name] = true
-			}
-		}
-	}
-
-	var dependencies []types.Dependency
+	// Build dependency scope maps from package.json
+	scopeMaps := buildDependencyScopeMaps(packageJSON, content)
 
 	// Handle both v2 (dependencies) and v3+ (packages) lockfile formats
 	if len(lockfile.Packages) > 0 {
-		// v3+ format with packages field
-		for path, pkg := range lockfile.Packages {
-			if path == "" {
-				continue // Skip root package
-			}
+		return parsePackagesV3(lockfile.Packages, options, scopeMaps)
+	}
 
-			name := extractNameFromNodeModulesPath(path)
-			if name == "" {
-				continue
-			}
+	if len(lockfile.Dependencies) > 0 {
+		return parseDependenciesV2Format(lockfile.Dependencies, options, scopeMaps)
+	}
 
-			// Skip bundled dependencies (deps.dev pattern)
-			if pkg.Bundled {
-				continue
-			}
+	return nil
+}
 
-			// Filter transitive dependencies based on options (default: false for backward compatibility)
-			if !options.IncludeTransitive && strings.Count(path, "node_modules/") != 1 {
-				continue
-			}
+// buildDependencyScopeMaps builds maps of direct dependency names with their scopes from package.json
+func buildDependencyScopeMaps(packageJSON *PackageJSON, content []byte) dependencyScopeMaps {
+	maps := dependencyScopeMaps{
+		prodDeps:     make(map[string]bool),
+		devDeps:      make(map[string]bool),
+		peerDeps:     make(map[string]bool),
+		optionalDeps: make(map[string]bool),
+	}
 
-			// Determine scope based on package.json and lockfile metadata
-			scope := determineScopeFromLockfile(name, pkg, prodDeps, devDeps, peerDeps, optionalDeps)
+	if packageJSON == nil {
+		return maps
+	}
 
-			dependencies = append(dependencies, types.Dependency{
-				Type:       "npm",
-				Name:       name,
-				Version:    pkg.Version,
-				SourceFile: "package-lock.json",
-				Scope:      scope,
-			})
+	for name := range packageJSON.Dependencies {
+		maps.prodDeps[name] = true
+	}
+	for name := range packageJSON.DevDependencies {
+		maps.devDeps[name] = true
+	}
+
+	// Try to detect peer and optional dependencies if enhanced struct is available
+	if enhancedPkg, err := parseEnhancedPackageJSON(content); err == nil {
+		for name := range enhancedPkg.PeerDependencies {
+			maps.peerDeps[name] = true
 		}
-	} else if len(lockfile.Dependencies) > 0 {
-		// v2 format with dependencies field (recursive parsing)
-		if options.IncludeTransitive {
-			dependencies = parseDependenciesV2(lockfile.Dependencies, "", prodDeps, devDeps, peerDeps, optionalDeps)
-		} else {
-			// For backward compatibility, only return top-level dependencies
-			for name, dep := range lockfile.Dependencies {
-				if dep.Bundled {
-					continue
-				}
-				scope := determineScopeFromLockfile(name, PackageInfo{Dev: dep.Dev, Optional: dep.Optional}, prodDeps, devDeps, peerDeps, optionalDeps)
-				dependencies = append(dependencies, types.Dependency{
-					Type:       "npm",
-					Name:       name,
-					Version:    dep.Version,
-					SourceFile: "package-lock.json",
-					Scope:      scope,
-				})
-			}
+		for name := range enhancedPkg.OptionalDependencies {
+			maps.optionalDeps[name] = true
 		}
 	}
 
+	return maps
+}
+
+// dependencyScopeMaps holds the dependency scope mappings
+type dependencyScopeMaps struct {
+	prodDeps     map[string]bool
+	devDeps      map[string]bool
+	peerDeps     map[string]bool
+	optionalDeps map[string]bool
+}
+
+// parsePackagesV3 parses v3+ format with packages field
+func parsePackagesV3(packages map[string]PackageInfo, options ParsePackageLockOptions, maps dependencyScopeMaps) []types.Dependency {
+	var dependencies []types.Dependency
+
+	for path, pkg := range packages {
+		if shouldSkipPackage(path, pkg, options) {
+			continue
+		}
+
+		name := extractNameFromNodeModulesPath(path)
+		if name == "" {
+			continue
+		}
+
+		scope := determineScopeFromLockfile(name, pkg, maps.prodDeps, maps.devDeps, maps.peerDeps, maps.optionalDeps)
+
+		dependencies = append(dependencies, types.Dependency{
+			Type:       "npm",
+			Name:       name,
+			Version:    pkg.Version,
+			SourceFile: "package-lock.json",
+			Scope:      scope,
+		})
+	}
+
 	return dependencies
+}
+
+// shouldSkipPackage determines if a package should be skipped during parsing
+func shouldSkipPackage(path string, pkg PackageInfo, options ParsePackageLockOptions) bool {
+	if path == "" {
+		return true // Skip root package
+	}
+
+	if pkg.Bundled {
+		return true // Skip bundled dependencies
+	}
+
+	// Filter transitive dependencies based on options
+	if !options.IncludeTransitive && strings.Count(path, "node_modules/") != 1 {
+		return true
+	}
+
+	return false
+}
+
+// parseDependenciesV2Format parses v2 format with dependencies field
+func parseDependenciesV2Format(dependencies map[string]PackageInfo, options ParsePackageLockOptions, maps dependencyScopeMaps) []types.Dependency {
+	if options.IncludeTransitive {
+		return parseDependenciesV2(dependencies, "", maps.prodDeps, maps.devDeps, maps.peerDeps, maps.optionalDeps)
+	}
+
+	return parseTopLevelDependenciesV2(dependencies, maps)
+}
+
+// parseTopLevelDependenciesV2 parses only top-level dependencies from v2 format
+func parseTopLevelDependenciesV2(dependencies map[string]PackageInfo, maps dependencyScopeMaps) []types.Dependency {
+	var result []types.Dependency
+
+	for name, dep := range dependencies {
+		if dep.Bundled {
+			continue
+		}
+
+		scope := determineScopeFromLockfile(name, PackageInfo{Dev: dep.Dev, Optional: dep.Optional}, maps.prodDeps, maps.devDeps, maps.peerDeps, maps.optionalDeps)
+
+		result = append(result, types.Dependency{
+			Type:       "npm",
+			Name:       name,
+			Version:    dep.Version,
+			SourceFile: "package-lock.json",
+			Scope:      scope,
+		})
+	}
+
+	return result
 }
 
 // extractNameFromNodeModulesPath extracts package name from package-lock.json path
 // e.g., "node_modules/express" -> "express"
 // e.g., "node_modules/@babel/core" -> "@babel/core"
 // e.g., "node_modules/express/node_modules/accepts" -> "accepts"
+// e.g., "express" -> "express" (handles paths without node_modules/ prefix)
 func extractNameFromNodeModulesPath(path string) string {
+	var packagePath string
+
 	// Split by "node_modules/" to get all segments
 	segments := strings.Split(path, "node_modules/")
 
-	if len(segments) < 2 {
-		return ""
+	if len(segments) >= 2 {
+		// Get the last segment (the actual package)
+		packagePath = segments[len(segments)-1]
+	} else {
+		// No "node_modules/" in path, use the path as-is
+		packagePath = path
 	}
 
-	// Get the last segment (the actual package)
-	lastSegment := segments[len(segments)-1]
-	lastSegment = strings.TrimSpace(lastSegment)
+	packagePath = strings.TrimSpace(packagePath)
 
-	if lastSegment == "" {
+	if packagePath == "" {
 		return ""
 	}
 
 	// Handle scoped packages like @babel/core
-	if strings.HasPrefix(lastSegment, "@") {
-		parts := strings.Split(lastSegment, "/")
+	if strings.HasPrefix(packagePath, "@") {
+		parts := strings.Split(packagePath, "/")
 		if len(parts) >= 2 {
 			return strings.Join(parts[:2], "/")
 		}
+		return packagePath
 	}
 
 	// Handle regular packages - just return the first part
-	parts := strings.Split(lastSegment, "/")
+	parts := strings.Split(packagePath, "/")
 	if len(parts) > 0 {
 		return parts[0]
 	}
 
-	return lastSegment
+	return packagePath
 }
 
 // parseEnhancedPackageJSON attempts to parse package.json with enhanced fields

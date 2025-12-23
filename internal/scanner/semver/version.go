@@ -18,7 +18,6 @@ package semver
 
 import (
 	"fmt"
-	"strings"
 )
 
 // System represents a versioning system (PyPI, npm, cargo, etc.)
@@ -48,6 +47,7 @@ var (
 	PyPI  System = &pypiSystem{}
 	NPM   System = &npmSystem{}
 	Cargo System = &cargoSystem{}
+	Maven System = &mavenSystem{}
 )
 
 // ParseError represents a version parsing error
@@ -95,33 +95,4 @@ func (s *cargoSystem) Parse(version string) (Version, error) {
 // isDigit returns true if the byte is a digit
 func isDigit(b byte) bool {
 	return '0' <= b && b <= '9'
-}
-
-// isLetter returns true if the byte is a letter
-func isLetter(b byte) bool {
-	return ('a' <= b && b <= 'z') || ('A' <= b && b <= 'Z')
-}
-
-// parseInt parses an integer from a string starting at the given position
-// Returns the integer value and the position after the last digit
-func parseInt(s string, start int) (int, int) {
-	if start >= len(s) || !isDigit(s[start]) {
-		return 0, start
-	}
-
-	val := 0
-	pos := start
-	for pos < len(s) && isDigit(s[pos]) {
-		val = val*10 + int(s[pos]-'0')
-		pos++
-	}
-	return val, pos
-}
-
-// splitSegments splits a string into segments separated by dots
-func splitSegments(s string) []string {
-	if s == "" {
-		return nil
-	}
-	return strings.Split(s, ".")
 }

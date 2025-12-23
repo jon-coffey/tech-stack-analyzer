@@ -132,20 +132,20 @@ func TestNormalizeNPMVersion(t *testing.T) {
 		{"1.2", "1.2.0"},
 		{"1", "1.0.0"},
 
-		// Special protocols
+		// Special protocols - following deps.dev patterns
 		{"workspace:*", "workspace"},
 		{"workspace:^1.0.0", "workspace"},
 		{"file:../local", "local"},
-		{"git:repo#main", "git"},
-		{"git+https://github.com/user/repo.git", "git"},
-		{"github:user/repo", "github"},
-		{"http://example.com/package.tgz", "tarball"},
-		{"https://example.com/package.tgz", "tarball"},
+		{"git:repo#main", "git:repo#main"}, // Preserve full git URL
+		{"git+https://github.com/user/repo.git", "git+https://github.com/user/repo.git"}, // Preserve full git URL
+		{"github:user/repo", "github:user/repo"},                                         // Preserve full github reference
+		{"http://example.com/package.tgz", "http://example.com/package.tgz"},             // Preserve full HTTP URL
+		{"https://example.com/package.tgz", "https://example.com/package.tgz"},           // Preserve full HTTPS URL
 		{"link:../local", "link"},
 
-		// npm protocol
-		{"npm:package@1.2.3", "1.2.3"},
-		{"npm:@scope/package@1.2.3", "1.2.3"},
+		// npm protocol - extract package@version
+		{"npm:package@1.2.3", "package@1.2.3"},
+		{"npm:@scope/package@1.2.3", "@scope/package@1.2.3"},
 
 		// Special values
 		{"*", "latest"},

@@ -193,23 +193,6 @@ func parsePnpmVersion(version string, resolution PnpmResolution) string {
 	return version
 }
 
-// determinePnpmScope determines the dependency scope for pnpm packages
-// Enhanced with deps.dev patterns for accurate scope classification
-func determinePnpmScope(pkg PnpmPackage) string {
-	// Check if it's an optional dependency
-	if pkg.Optional {
-		return "optional"
-	}
-
-	// Check if it's a development dependency
-	if pkg.Dev {
-		return "dev"
-	}
-
-	// Default to production for transitive dependencies
-	return "prod"
-}
-
 // GetPnpmLockfileVersion detects the pnpm-lock.yaml version format
 func GetPnpmLockfileVersion(content []byte) string {
 	var lockfile struct {

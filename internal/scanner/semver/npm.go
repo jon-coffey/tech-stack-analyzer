@@ -148,31 +148,28 @@ func (v *NPMVersion) Compare(other Version) int {
 		return 0
 	}
 
-	// Compare major
-	if v.major != o.major {
-		if v.major < o.major {
-			return -1
-		}
-		return 1
+	// Compare core version numbers (major.minor.patch)
+	if cmp := v.compareCoreVersion(o); cmp != 0 {
+		return cmp
 	}
 
-	// Compare minor
-	if v.minor != o.minor {
-		if v.minor < o.minor {
-			return -1
-		}
-		return 1
-	}
+	// Compare prerelease versions
+	return v.comparePrerelease(o)
+}
 
-	// Compare patch
-	if v.patch != o.patch {
-		if v.patch < o.patch {
-			return -1
-		}
-		return 1
+// compareCoreVersion compares major, minor, and patch versions
+func (v *NPMVersion) compareCoreVersion(o *NPMVersion) int {
+	if cmp := compareInt(v.major, o.major); cmp != 0 {
+		return cmp
 	}
+	if cmp := compareInt(v.minor, o.minor); cmp != 0 {
+		return cmp
+	}
+	return compareInt(v.patch, o.patch)
+}
 
-	// Compare prerelease
+// comparePrerelease compares prerelease versions according to semver 2.0.0
+func (v *NPMVersion) comparePrerelease(o *NPMVersion) int {
 	// When a major, minor, and patch are equal, a pre-release version has lower precedence than a normal version
 	if len(v.prerelease) == 0 && len(o.prerelease) > 0 {
 		return 1
@@ -181,88 +178,107 @@ func (v *NPMVersion) Compare(other Version) int {
 		return -1
 	}
 
-	if len(v.prerelease) > 0 && len(o.prerelease) > 0 {
-		minLen := len(v.prerelease)
-		if len(o.prerelease) < minLen {
-			minLen = len(o.prerelease)
-		}
+	if len(v.prerelease) == 0 && len(o.prerelease) == 0 {
+		return 0 // Build metadata is ignored in version precedence
+	}
 
-		for i := 0; i < minLen; i++ {
-			vPart := v.prerelease[i]
-			oPart := o.prerelease[i]
+	return v.comparePrereleaseIdentifiers(o)
+}
 
-			// Try to parse as integers
-			vNum, vErr := strconv.Atoi(vPart)
-			oNum, oErr := strconv.Atoi(oPart)
+// comparePrereleaseIdentifiers compares prerelease identifiers
+func (v *NPMVersion) comparePrereleaseIdentifiers(o *NPMVersion) int {
+	minLen := len(v.prerelease)
+	if len(o.prerelease) < minLen {
+		minLen = len(o.prerelease)
+	}
 
-			// Both are numbers
-			if vErr == nil && oErr == nil {
-				if vNum != oNum {
-					if vNum < oNum {
-						return -1
-					}
-					return 1
-				}
-				continue
-			}
-
-			// One is number, one is string - numbers have lower precedence
-			if vErr == nil && oErr != nil {
-				return -1
-			}
-			if vErr != nil && oErr == nil {
-				return 1
-			}
-
-			// Both are strings - lexical comparison
-			if vPart != oPart {
-				if vPart < oPart {
-					return -1
-				}
-				return 1
-			}
-		}
-
-		// All compared parts are equal, longer prerelease has higher precedence
-		if len(v.prerelease) != len(o.prerelease) {
-			if len(v.prerelease) < len(o.prerelease) {
-				return -1
-			}
-			return 1
+	for i := 0; i < minLen; i++ {
+		if cmp := comparePrereleaseIdentifier(v.prerelease[i], o.prerelease[i]); cmp != 0 {
+			return cmp
 		}
 	}
 
-	// Build metadata is ignored in version precedence
+	// All compared parts are equal, longer prerelease has higher precedence
+	return compareInt(len(v.prerelease), len(o.prerelease))
+}
+
+// comparePrereleaseIdentifier compares two prerelease identifiers
+func comparePrereleaseIdentifier(vPart, oPart string) int {
+	vNum, vErr := strconv.Atoi(vPart)
+	oNum, oErr := strconv.Atoi(oPart)
+
+	// Both are numbers
+	if vErr == nil && oErr == nil {
+		return compareInt(vNum, oNum)
+	}
+
+	// One is number, one is string - numbers have lower precedence
+	if vErr == nil && oErr != nil {
+		return -1
+	}
+	if vErr != nil && oErr == nil {
+		return 1
+	}
+
+	// Both are strings - lexical comparison
+	if vPart < oPart {
+		return -1
+	}
+	if vPart > oPart {
+		return 1
+	}
+	return 0
+}
+
+// compareInt compares two integers
+func compareInt(a, b int) int {
+	if a < b {
+		return -1
+	}
+	if a > b {
+		return 1
+	}
 	return 0
 }
 
 // NormalizeNPMVersion normalizes npm version strings
 // Handles common npm version patterns like workspace:, file:, git:, etc.
+// Following deps.dev patterns: preserve full strings for git/github/http URLs
 func NormalizeNPMVersion(version string) string {
 	version = strings.TrimSpace(version)
 
-	// Handle special npm version types
+	// Handle workspace protocol - normalize to "workspace"
 	if strings.HasPrefix(version, "workspace:") {
 		return "workspace"
 	}
+
+	// Handle file protocol - normalize to "local"
 	if strings.HasPrefix(version, "file:") {
 		return "local"
 	}
-	if strings.HasPrefix(version, "git:") || strings.HasPrefix(version, "git+") {
-		return "git"
-	}
-	if strings.HasPrefix(version, "github:") {
-		return "github"
-	}
-	if strings.HasPrefix(version, "http:") || strings.HasPrefix(version, "https:") {
-		return "tarball"
-	}
+
+	// Handle npm protocol (e.g., "npm:package@^1.0.0") - extract package@version
 	if strings.HasPrefix(version, "npm:") {
-		// Extract version from npm: protocol (e.g., "npm:package@1.0.0")
-		if idx := strings.LastIndexByte(version, '@'); idx > 4 {
-			version = version[idx+1:]
-		}
+		// Remove "npm:" prefix and return the rest (package@version)
+		return strings.TrimPrefix(version, "npm:")
 	}
+
+	// Preserve full git URLs (deps.dev pattern)
+	if strings.HasPrefix(version, "git:") || strings.HasPrefix(version, "git+") {
+		return version
+	}
+
+	// Preserve full github references (deps.dev pattern)
+	if strings.HasPrefix(version, "github:") {
+		return version
+	}
+
+	// Preserve full HTTP/HTTPS URLs (deps.dev pattern)
+	if strings.HasPrefix(version, "http:") || strings.HasPrefix(version, "https:") {
+		return version
+	}
+
+	// Handle link protocol
 	if strings.HasPrefix(version, "link:") {
 		return "link"
 	}

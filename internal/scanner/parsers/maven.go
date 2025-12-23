@@ -18,16 +18,22 @@ var (
 
 // MavenProject represents a parsed pom.xml structure
 type MavenProject struct {
-	XMLName      xml.Name          `xml:"project"`
-	GroupId      string            `xml:"groupId"`
-	ArtifactId   string            `xml:"artifactId"`
-	Version      string            `xml:"version"`
-	Parent       MavenParent       `xml:"parent"`
-	Dependencies MavenDependencies `xml:"dependencies"`
+	XMLName              xml.Name                  `xml:"project"`
+	GroupId              string                    `xml:"groupId"`
+	ArtifactId           string                    `xml:"artifactId"`
+	Version              string                    `xml:"version"`
+	Parent               MavenParent               `xml:"parent"`
+	Dependencies         MavenDependencies         `xml:"dependencies"`
+	DependencyManagement MavenDependencyManagement `xml:"dependencyManagement"`
 }
 
 // MavenDependencies holds the list of dependencies
 type MavenDependencies struct {
+	Dependencies []MavenDependency `xml:"dependency"`
+}
+
+// MavenDependencyManagement holds the dependency management section
+type MavenDependencyManagement struct {
 	Dependencies []MavenDependency `xml:"dependency"`
 }
 
@@ -37,6 +43,9 @@ type MavenDependency struct {
 	ArtifactId string `xml:"artifactId"`
 	Version    string `xml:"version"`
 	Scope      string `xml:"scope,omitempty"`
+	Type       string `xml:"type,omitempty"`       // pom, jar, war, ear, etc.
+	Classifier string `xml:"classifier,omitempty"` // sources, javadoc, etc.
+	Optional   bool   `xml:"optional,omitempty"`
 }
 
 // MavenParent represents the parent POM reference
@@ -97,9 +106,32 @@ func (p *MavenParser) ParsePomXMLWithProvider(content string, pomDir string, pro
 	// 3. Add project coordinates (override all)
 	p.addProjectCoordinates(properties, project.GroupId, project.ArtifactId, project.Version)
 
-	// Build dependencies list
+	// Build dependencies list from <dependencies> section
 	for _, dep := range project.Dependencies.Dependencies {
 		if dep.GroupId != "" && dep.ArtifactId != "" {
+			dependencies = append(dependencies, types.Dependency{
+				Type:    "maven",
+				Name:    dep.GroupId + ":" + dep.ArtifactId,
+				Version: p.resolveVersion(dep.Version, properties),
+				Scope:   mapMavenScope(dep.Scope),
+			})
+		}
+	}
+
+	// Process dependency management section (for BOM imports and version management)
+	depMgmtDeps := p.parseDependencyManagement(project.DependencyManagement.Dependencies, properties)
+	dependencies = append(dependencies, depMgmtDeps...)
+
+	return dependencies
+}
+
+// parseDependencyManagement processes dependency management section
+func (p *MavenParser) parseDependencyManagement(deps []MavenDependency, properties map[string]string) []types.Dependency {
+	var dependencies []types.Dependency
+
+	for _, dep := range deps {
+		if dep.GroupId != "" && dep.ArtifactId != "" {
+			// Include BOM imports and dependency management entries
 			dependencies = append(dependencies, types.Dependency{
 				Type:    "maven",
 				Name:    dep.GroupId + ":" + dep.ArtifactId,
@@ -114,10 +146,20 @@ func (p *MavenParser) ParsePomXMLWithProvider(content string, pomDir string, pro
 
 // mapMavenScope maps Maven scope to our scope constants
 func mapMavenScope(mavenScope string) string {
-	if mavenScope == "test" {
+	switch mavenScope {
+	case "test":
 		return types.ScopeDev
+	case "provided", "runtime":
+		return types.ScopeProd
+	case "system":
+		return types.ScopeSystem
+	case "import":
+		return types.ScopeImport // BOM imports
+	case "compile", "":
+		return types.ScopeProd
+	default:
+		return types.ScopeProd
 	}
-	return types.ScopeProd
 }
 
 // addProjectCoordinates adds project.* and pom.* properties for the given coordinates

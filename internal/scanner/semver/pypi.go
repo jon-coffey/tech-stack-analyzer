@@ -57,135 +57,151 @@ func parsePyPIVersion(version string) (*PyPIVersion, error) {
 	v := &PyPIVersion{original: version}
 	s := strings.ToLower(strings.TrimSpace(version))
 
-	// Parse epoch (e.g., "1!")
+	// Parse components in order: epoch, local, dev, post, pre, release
+	var err error
+	s, err = v.parseEpoch(s, version)
+	if err != nil {
+		return nil, err
+	}
+
+	s = v.parseLocal(s)
+
+	s, err = v.parseDev(s, version)
+	if err != nil {
+		return nil, err
+	}
+
+	s, err = v.parsePost(s, version)
+	if err != nil {
+		return nil, err
+	}
+
+	s, err = v.parsePreRelease(s, version)
+	if err != nil {
+		return nil, err
+	}
+
+	err = v.parseRelease(s, version)
+	if err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+// parseEpoch parses the epoch component (e.g., "1!")
+func (v *PyPIVersion) parseEpoch(s, version string) (string, error) {
 	if idx := strings.IndexByte(s, '!'); idx > 0 {
 		epochStr := s[:idx]
 		epoch, err := strconv.Atoi(epochStr)
 		if err != nil {
-			return nil, parseError("PyPI", version, fmt.Sprintf("invalid epoch: %s", epochStr))
+			return s, parseError("PyPI", version, fmt.Sprintf("invalid epoch: %s", epochStr))
 		}
 		v.epoch = epoch
-		s = s[idx+1:]
+		return s[idx+1:], nil
 	}
+	return s, nil
+}
 
-	// Parse local version (e.g., "+local.version")
+// parseLocal parses the local version component (e.g., "+local.version")
+func (v *PyPIVersion) parseLocal(s string) string {
 	if idx := strings.IndexByte(s, '+'); idx >= 0 {
 		v.local = s[idx+1:]
-		s = s[:idx]
+		return s[:idx]
+	}
+	return s
+}
+
+// parseDev parses the dev release component (e.g., ".dev0" or "dev0")
+func (v *PyPIVersion) parseDev(s, version string) (string, error) {
+	patterns := []struct {
+		prefix string
+		offset int
+	}{
+		{".dev", 4},
+		{"dev", 3},
 	}
 
-	// Parse dev release (e.g., ".dev0")
-	if idx := strings.Index(s, ".dev"); idx >= 0 {
-		devStr := s[idx+4:]
-		if devStr != "" {
-			dev, err := strconv.Atoi(devStr)
+	for _, pattern := range patterns {
+		if idx := strings.Index(s, pattern.prefix); idx >= 0 {
+			devStr := s[idx+pattern.offset:]
+			dev, err := parseOptionalNumber(devStr, version, "dev")
 			if err != nil {
-				return nil, parseError("PyPI", version, fmt.Sprintf("invalid dev number: %s", devStr))
+				return s, err
 			}
-			v.dev = &dev
-		} else {
-			zero := 0
-			v.dev = &zero
+			v.dev = dev
+			return s[:idx], nil
 		}
-		s = s[:idx]
-	} else if idx := strings.Index(s, "dev"); idx >= 0 {
-		// Handle "dev" without dot
-		devStr := s[idx+3:]
-		if devStr != "" {
-			dev, err := strconv.Atoi(devStr)
-			if err != nil {
-				return nil, parseError("PyPI", version, fmt.Sprintf("invalid dev number: %s", devStr))
-			}
-			v.dev = &dev
-		} else {
-			zero := 0
-			v.dev = &zero
-		}
-		s = s[:idx]
+	}
+	return s, nil
+}
+
+// parsePost parses the post release component (e.g., ".post0", "post0", or "-0")
+func (v *PyPIVersion) parsePost(s, version string) (string, error) {
+	patterns := []struct {
+		prefix string
+		offset int
+	}{
+		{".post", 5},
+		{"post", 4},
 	}
 
-	// Parse post release (e.g., ".post0" or "-0")
-	if idx := strings.Index(s, ".post"); idx >= 0 {
-		postStr := s[idx+5:]
-		if postStr != "" {
-			post, err := strconv.Atoi(postStr)
+	for _, pattern := range patterns {
+		if idx := strings.Index(s, pattern.prefix); idx >= 0 {
+			postStr := s[idx+pattern.offset:]
+			post, err := parseOptionalNumber(postStr, version, "post")
 			if err != nil {
-				return nil, parseError("PyPI", version, fmt.Sprintf("invalid post number: %s", postStr))
+				return s, err
 			}
-			v.post = &post
-		} else {
-			zero := 0
-			v.post = &zero
+			v.post = post
+			return s[:idx], nil
 		}
-		s = s[:idx]
-	} else if idx := strings.Index(s, "post"); idx >= 0 {
-		postStr := s[idx+4:]
-		if postStr != "" {
-			post, err := strconv.Atoi(postStr)
-			if err != nil {
-				return nil, parseError("PyPI", version, fmt.Sprintf("invalid post number: %s", postStr))
-			}
-			v.post = &post
-		} else {
-			zero := 0
-			v.post = &zero
-		}
-		s = s[:idx]
-	} else if idx := strings.LastIndexByte(s, '-'); idx >= 0 {
-		// Handle post release with dash (but not underscore, which is a separator)
+	}
+
+	// Handle post release with dash
+	if idx := strings.LastIndexByte(s, '-'); idx >= 0 {
 		postStr := s[idx+1:]
 		if postStr != "" && isAllDigits(postStr) {
-			post, err := strconv.Atoi(postStr)
-			if err == nil {
+			if post, err := strconv.Atoi(postStr); err == nil {
 				v.post = &post
-				s = s[:idx]
+				return s[:idx], nil
 			}
 		}
 	}
 
-	// Parse pre-release (alpha, beta, rc)
-	preIdx := -1
-	prePhase := ""
+	return s, nil
+}
 
-	for _, phase := range []string{"rc", "c", "beta", "b", "alpha", "a"} {
-		if idx := strings.Index(s, phase); idx >= 0 {
-			if preIdx == -1 || idx < preIdx {
-				preIdx = idx
-				prePhase = phase
-			}
-		}
-	}
+// parsePreRelease parses the pre-release component (alpha, beta, rc)
+func (v *PyPIVersion) parsePreRelease(s, version string) (string, error) {
+	preIdx, prePhase := findEarliestPreReleasePhase(s)
 
 	if preIdx >= 0 {
 		preNumStr := s[preIdx+len(prePhase):]
 		s = s[:preIdx]
 
-		// Normalize phase names
-		switch prePhase {
-		case "alpha", "a":
-			prePhase = "a"
-		case "beta", "b":
-			prePhase = "b"
-		case "c", "rc":
-			prePhase = "rc"
-		}
+		prePhase = normalizePreReleasePhase(prePhase)
 
 		preNum := 0
 		if preNumStr != "" {
 			var err error
 			preNum, err = strconv.Atoi(preNumStr)
 			if err != nil {
-				return nil, parseError("PyPI", version, fmt.Sprintf("invalid pre-release number: %s", preNumStr))
+				return s, parseError("PyPI", version, fmt.Sprintf("invalid pre-release number: %s", preNumStr))
 			}
 		}
 
 		v.pre = &preRelease{phase: prePhase, number: preNum}
 	}
 
-	// Parse release numbers (e.g., "1.2.3")
+	return s, nil
+}
+
+// parseRelease parses the release numbers (e.g., "1.2.3")
+func (v *PyPIVersion) parseRelease(s, version string) error {
 	s = strings.TrimRight(s, ".")
 	if s == "" {
-		return nil, parseError("PyPI", version, "no release numbers found")
+		return parseError("PyPI", version, "no release numbers found")
 	}
 
 	parts := strings.FieldsFunc(s, func(r rune) bool {
@@ -198,16 +214,59 @@ func parsePyPIVersion(version string) (*PyPIVersion, error) {
 		}
 		num, err := strconv.Atoi(part)
 		if err != nil {
-			return nil, parseError("PyPI", version, fmt.Sprintf("invalid release number: %s", part))
+			return parseError("PyPI", version, fmt.Sprintf("invalid release number: %s", part))
 		}
 		v.release = append(v.release, num)
 	}
 
 	if len(v.release) == 0 {
-		return nil, parseError("PyPI", version, "no valid release numbers")
+		return parseError("PyPI", version, "no valid release numbers")
 	}
 
-	return v, nil
+	return nil
+}
+
+// parseOptionalNumber parses an optional number, returning a pointer to 0 if empty
+func parseOptionalNumber(numStr, version, component string) (*int, error) {
+	if numStr != "" {
+		num, err := strconv.Atoi(numStr)
+		if err != nil {
+			return nil, parseError("PyPI", version, fmt.Sprintf("invalid %s number: %s", component, numStr))
+		}
+		return &num, nil
+	}
+	zero := 0
+	return &zero, nil
+}
+
+// findEarliestPreReleasePhase finds the earliest pre-release phase in the string
+func findEarliestPreReleasePhase(s string) (int, string) {
+	preIdx := -1
+	prePhase := ""
+
+	for _, phase := range []string{"rc", "c", "beta", "b", "alpha", "a"} {
+		if idx := strings.Index(s, phase); idx >= 0 {
+			if preIdx == -1 || idx < preIdx {
+				preIdx = idx
+				prePhase = phase
+			}
+		}
+	}
+
+	return preIdx, prePhase
+}
+
+// normalizePreReleasePhase normalizes pre-release phase names
+func normalizePreReleasePhase(phase string) string {
+	switch phase {
+	case "alpha", "a":
+		return "a"
+	case "beta", "b":
+		return "b"
+	case "c", "rc":
+		return "rc"
+	}
+	return phase
 }
 
 // Canon returns the canonical string representation of the version
@@ -264,42 +323,47 @@ func (v *PyPIVersion) String() string {
 func (v *PyPIVersion) Compare(other Version) int {
 	o, ok := other.(*PyPIVersion)
 	if !ok {
-		// Can't compare different version types
 		return 0
 	}
 
-	// Compare epoch
-	if v.epoch != o.epoch {
-		if v.epoch < o.epoch {
-			return -1
-		}
-		return 1
+	// Compare components in PEP 440 precedence order
+	if cmp := compareInt(v.epoch, o.epoch); cmp != 0 {
+		return cmp
 	}
 
-	// Compare release
+	if cmp := v.compareRelease(o); cmp != 0 {
+		return cmp
+	}
+
+	if cmp := v.comparePreReleasePart(o); cmp != 0 {
+		return cmp
+	}
+
+	if cmp := v.comparePostRelease(o); cmp != 0 {
+		return cmp
+	}
+
+	return v.compareDevRelease(o)
+}
+
+// compareRelease compares release numbers
+func (v *PyPIVersion) compareRelease(o *PyPIVersion) int {
 	minLen := len(v.release)
 	if len(o.release) < minLen {
 		minLen = len(o.release)
 	}
 
 	for i := 0; i < minLen; i++ {
-		if v.release[i] != o.release[i] {
-			if v.release[i] < o.release[i] {
-				return -1
-			}
-			return 1
+		if cmp := compareInt(v.release[i], o.release[i]); cmp != 0 {
+			return cmp
 		}
 	}
 
-	// If all compared parts are equal, longer version is greater
-	if len(v.release) != len(o.release) {
-		if len(v.release) < len(o.release) {
-			return -1
-		}
-		return 1
-	}
+	return compareInt(len(v.release), len(o.release))
+}
 
-	// Compare pre-release (no pre-release > has pre-release)
+// comparePreReleasePart compares pre-release versions (no pre-release > has pre-release)
+func (v *PyPIVersion) comparePreReleasePart(o *PyPIVersion) int {
 	if v.pre == nil && o.pre != nil {
 		return 1
 	}
@@ -307,26 +371,22 @@ func (v *PyPIVersion) Compare(other Version) int {
 		return -1
 	}
 	if v.pre != nil && o.pre != nil {
-		// Compare phase (a < b < rc)
-		phaseOrder := map[string]int{"a": 1, "b": 2, "rc": 3}
-		vPhase := phaseOrder[v.pre.phase]
-		oPhase := phaseOrder[o.pre.phase]
-		if vPhase != oPhase {
-			if vPhase < oPhase {
-				return -1
-			}
-			return 1
-		}
-		// Compare number
-		if v.pre.number != o.pre.number {
-			if v.pre.number < o.pre.number {
-				return -1
-			}
-			return 1
-		}
+		return comparePreRelease(v.pre, o.pre)
 	}
+	return 0
+}
 
-	// Compare post-release (no post < has post)
+// comparePreRelease compares two pre-release versions
+func comparePreRelease(v, o *preRelease) int {
+	phaseOrder := map[string]int{"a": 1, "b": 2, "rc": 3}
+	if cmp := compareInt(phaseOrder[v.phase], phaseOrder[o.phase]); cmp != 0 {
+		return cmp
+	}
+	return compareInt(v.number, o.number)
+}
+
+// comparePostRelease compares post-release versions (no post < has post)
+func (v *PyPIVersion) comparePostRelease(o *PyPIVersion) int {
 	if v.post == nil && o.post != nil {
 		return -1
 	}
@@ -334,15 +394,13 @@ func (v *PyPIVersion) Compare(other Version) int {
 		return 1
 	}
 	if v.post != nil && o.post != nil {
-		if *v.post != *o.post {
-			if *v.post < *o.post {
-				return -1
-			}
-			return 1
-		}
+		return compareInt(*v.post, *o.post)
 	}
+	return 0
+}
 
-	// Compare dev-release (no dev > has dev)
+// compareDevRelease compares dev-release versions (no dev > has dev)
+func (v *PyPIVersion) compareDevRelease(o *PyPIVersion) int {
 	if v.dev == nil && o.dev != nil {
 		return 1
 	}
@@ -350,15 +408,8 @@ func (v *PyPIVersion) Compare(other Version) int {
 		return -1
 	}
 	if v.dev != nil && o.dev != nil {
-		if *v.dev != *o.dev {
-			if *v.dev < *o.dev {
-				return -1
-			}
-			return 1
-		}
+		return compareInt(*v.dev, *o.dev)
 	}
-
-	// Local versions are not compared in PEP 440
 	return 0
 }
 

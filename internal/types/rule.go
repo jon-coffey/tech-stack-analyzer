@@ -13,6 +13,9 @@ const (
 	ScopeBuild    = "build"
 	ScopeOptional = "optional"
 	ScopePeer     = "peer"
+	// Maven-specific scopes
+	ScopeSystem = "system"
+	ScopeImport = "import"
 )
 
 // Rule represents a technology detection rule

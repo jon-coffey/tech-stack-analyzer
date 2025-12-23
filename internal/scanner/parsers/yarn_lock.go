@@ -225,36 +225,6 @@ func parseYarnVersion(version, specType, resolution string) string {
 	return version
 }
 
-// determineYarnScope determines the dependency scope for yarn packages
-// Enhanced with deps.dev patterns for accurate scope classification
-func determineYarnScope(
-	name string,
-	prodDeps, devDeps, peerDeps, optionalDeps map[string]bool,
-) string {
-	// Check if it's a peer dependency
-	if peerDeps[name] {
-		return "peer"
-	}
-
-	// Check if it's an optional dependency
-	if optionalDeps[name] {
-		return "optional"
-	}
-
-	// Check if it's a development dependency
-	if devDeps[name] {
-		return "dev"
-	}
-
-	// Check if it's a production dependency
-	if prodDeps[name] {
-		return "prod"
-	}
-
-	// Return empty string for transitive dependencies (will be filtered out by default)
-	return ""
-}
-
 // DetectYarnVersion detects the yarn.lock version format
 func DetectYarnVersion(content []byte) string {
 	contentStr := string(content)
