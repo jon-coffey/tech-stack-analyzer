@@ -175,9 +175,10 @@ func (p *GradleParser) parseGradleDependency(line string) *types.Dependency {
 	}
 
 	return &types.Dependency{
-		Type:    "gradle",
+		Type:    DependencyTypeGradle,
 		Name:    dependencyName,
 		Version: version,
 		Scope:   scope,
+		Direct:  true, // All Gradle dependencies are direct (from build.gradle)
 	}
 }

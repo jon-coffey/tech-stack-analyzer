@@ -30,6 +30,7 @@ func ParsePoetryLock(lockContent []byte, pyprojectContent string) []types.Depend
 				Version:    version,
 				SourceFile: "poetry.lock",
 				Scope:      scope,
+				Direct:     true,
 			})
 		}
 	}

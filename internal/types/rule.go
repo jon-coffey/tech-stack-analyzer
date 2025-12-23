@@ -13,7 +13,18 @@ const (
 	ScopeBuild    = "build"
 	ScopeOptional = "optional"
 	ScopePeer     = "peer"
+	// Maven-specific scopes
+	ScopeSystem = "system"
+	ScopeImport = "import"
 )
+
+// NewMetadata creates a new metadata map with the source field set
+// This helper eliminates code duplication across parsers
+func NewMetadata(source string) map[string]interface{} {
+	metadata := make(map[string]interface{})
+	metadata["source"] = source
+	return metadata
+}
 
 // Rule represents a technology detection rule
 type Rule struct {
@@ -33,28 +44,42 @@ type Rule struct {
 
 // Dependency represents a dependency pattern (struct for YAML, but marshals as array for JSON)
 type Dependency struct {
-	Type       string `yaml:"type" json:"type"`
-	Name       string `yaml:"name" json:"name"`
-	Version    string `yaml:"version,omitempty" json:"version,omitempty"`
-	SourceFile string `yaml:"source_file,omitempty" json:"source_file,omitempty"`
-	Scope      string `yaml:"scope,omitempty" json:"scope,omitempty"`
+	Type       string                 `yaml:"type" json:"type"`
+	Name       string                 `yaml:"name" json:"name"`
+	Version    string                 `yaml:"version,omitempty" json:"version,omitempty"`
+	Scope      string                 `yaml:"scope,omitempty" json:"scope,omitempty"`
+	Direct     bool                   `yaml:"direct" json:"direct"`                               // Direct (true) vs transitive (false) dependency
+	SourceFile string                 `yaml:"source_file,omitempty" json:"source_file,omitempty"` // Deprecated: use metadata.source instead
+	Metadata   map[string]interface{} `yaml:"metadata,omitempty" json:"metadata,omitempty"`       // Package-specific metadata (source, type, classifier, optional, exclusions, peer, etc.)
 }
 
-// MarshalJSON converts Dependency struct to array format [type, name, version, scope?, source?]
-// Format rules:
-// - 3 elements: [type, name, version] - no scope, no source
-// - 4 elements: [type, name, version, scope] - has scope, no source
-// - 5 elements: [type, name, version, scope, source] - has source (scope may be "" if unknown)
+// MarshalJSON converts Dependency struct to array format [type, name, version, scope, direct, {metadata}]
+// Format: 6 elements (always consistent)
+// - [type, name, version, scope, direct, {metadata}]
+// - scope: "prod", "dev", "test", "build", "optional", "peer", etc. (empty string if unknown)
+// - direct: true (declared in manifest) or false (transitive)
+// - metadata: optional object with source, type, classifier, exclusions, peer, optional, bundled, etc.
 func (d Dependency) MarshalJSON() ([]byte, error) {
-	if d.SourceFile != "" {
-		// 5 elements: has source (scope may be empty)
-		return json.Marshal([]string{d.Type, d.Name, d.Version, d.Scope, d.SourceFile})
-	} else if d.Scope != "" {
-		// 4 elements: has scope, no source
-		return json.Marshal([]string{d.Type, d.Name, d.Version, d.Scope})
+	// Build metadata object
+	metadata := d.Metadata
+	if metadata == nil {
+		metadata = make(map[string]interface{})
 	}
-	// 3 elements: no scope, no source
-	return json.Marshal([]string{d.Type, d.Name, d.Version})
+
+	// Add source file to metadata if present (migrate from deprecated SourceFile field)
+	if d.SourceFile != "" {
+		if _, exists := metadata["source"]; !exists {
+			metadata["source"] = d.SourceFile
+		}
+	}
+
+	// Always return 6 elements for consistency
+	// If metadata is empty, return empty object
+	if len(metadata) == 0 {
+		return json.Marshal([]interface{}{d.Type, d.Name, d.Version, d.Scope, d.Direct, struct{}{}})
+	}
+
+	return json.Marshal([]interface{}{d.Type, d.Name, d.Version, d.Scope, d.Direct, metadata})
 }
 
 // CompiledDependency is a pre-compiled dependency for performance

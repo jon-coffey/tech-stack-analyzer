@@ -13,9 +13,9 @@
     "definitions": {
         "dependency": {
             "type": "array",
-            "description": "Dependency in array format [type, name, version, scope?, source?]. Format: 3 elements = no scope/source, 4 elements = has scope (no source), 5 elements = has source (scope may be '')",
-            "minItems": 3,
-            "maxItems": 5,
+            "description": "Dependency in array format [type, name, version, scope, direct, {metadata}]. Always 6 elements for consistency.",
+            "minItems": 6,
+            "maxItems": 6,
             "items": [
                 {
                     "type": "string",
@@ -31,21 +31,26 @@
                 },
                 {
                     "type": "string",
-                    "description": "Dependency scope ('prod', 'dev', 'test', 'build', 'optional', 'peer'). May be empty string '' in 5-element format when scope is unknown.",
-                    "enum": ["prod", "dev", "test", "build", "optional", "peer", ""]
+                    "description": "Dependency scope ('prod', 'dev', 'test', 'build', 'optional', 'peer', 'import', 'system'). Empty string '' if unknown.",
+                    "enum": ["prod", "dev", "test", "build", "optional", "peer", "import", "system", ""]
                 },
                 {
-                    "type": "string",
-                    "description": "Source file (e.g., 'pyproject.toml', 'package-lock.json'). Only present as 5th element."
+                    "type": "boolean",
+                    "description": "Direct dependency (true = declared in manifest, false = transitive/pulled in by other dependencies)"
+                },
+                {
+                    "type": "object",
+                    "description": "Package-specific metadata (source file, type, classifier, exclusions, peer, optional, bundled, etc.)",
+                    "additionalProperties": true
                 }
             ],
             "examples": [
-                ["golang", "github.com/user/module", "v1.2.3"],
-                ["maven", "junit:junit", "4.13.2", "dev"],
-                ["gradle", "org.projectlombok:lombok", "1.18.24", "build"],
-                ["npm", "lodash", "4.17.21", "prod", "package-lock.json"],
-                ["npm", "jest", "^29.0.0", "dev", "package.json"],
-                ["python", "requests", "2.31.0", "", "pyproject.toml"]
+                ["golang", "github.com/user/module", "v1.2.3", "prod", true, {}],
+                ["maven", "junit:junit", "4.13.2", "dev", true, {"type": "jar"}],
+                ["npm", "lodash", "4.17.21", "prod", true, {"source": "package-lock.json"}],
+                ["npm", "react", "18.2.0", "prod", true, {"source": "package-lock.json", "peer": true}],
+                ["npm", "accepts", "1.3.8", "prod", false, {"source": "package-lock.json"}],
+                ["maven", "spring-boot-starter-web", "2.7.0", "prod", true, {"type": "jar", "exclusions": ["spring-boot-starter-tomcat"]}]
             ]
         },
         "license": {

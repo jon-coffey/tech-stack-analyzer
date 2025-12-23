@@ -8,114 +8,124 @@ import (
 )
 
 func TestScopeJSONMarshaling(t *testing.T) {
-	// Maven dep with scope but no source -> 4 elements
-	depWithScopeNoSource := types.Dependency{
+	// Maven dep with scope, direct, no metadata -> 6 elements
+	depMaven := types.Dependency{
 		Type:    "maven",
 		Name:    "junit:junit",
 		Version: "4.13.2",
 		Scope:   types.ScopeDev,
+		Direct:  true,
 	}
 
-	// npm dep with scope and source -> 5 elements
-	depWithScopeAndSource := types.Dependency{
-		Type:       "npm",
-		Name:       "lodash",
-		Version:    "4.17.21",
-		Scope:      types.ScopeProd,
-		SourceFile: "package-lock.json",
+	// npm dep with scope, direct, and metadata -> 6 elements
+	depWithMetadata := types.Dependency{
+		Type:    "npm",
+		Name:    "lodash",
+		Version: "4.17.21",
+		Scope:   types.ScopeProd,
+		Direct:  true,
+		Metadata: map[string]interface{}{
+			"optional": true,
+		},
 	}
 
-	// Dep with no scope, no source -> 3 elements
-	depNoScopeNoSource := types.Dependency{
+	// Go dep with no scope, direct -> 6 elements
+	depGo := types.Dependency{
 		Type:    "golang",
 		Name:    "github.com/user/module",
 		Version: "v1.2.3",
+		Direct:  true,
 	}
 
-	// Dep with source but no scope -> 5 elements (scope is empty string)
-	depSourceNoScope := types.Dependency{
+	// Python dep with source file -> 6 elements
+	depPython := types.Dependency{
 		Type:       "python",
 		Name:       "requests",
 		Version:    "2.31.0",
 		SourceFile: "requirements.txt",
+		Direct:     true,
 	}
 
-	// Test 4-element format (scope, no source)
-	json4, _ := json.Marshal(depWithScopeNoSource)
-	var arr4 []string
-	json.Unmarshal(json4, &arr4)
-	if len(arr4) != 4 {
-		t.Errorf("Expected 4 elements for scope-only dep, got %d: %v", len(arr4), arr4)
+	// Test Maven (6 elements with empty metadata)
+	jsonMaven, _ := json.Marshal(depMaven)
+	var arrMaven []interface{}
+	json.Unmarshal(jsonMaven, &arrMaven)
+	if len(arrMaven) != 6 {
+		t.Errorf("Expected 6 elements for Maven dep, got %d: %v", len(arrMaven), arrMaven)
 	}
-	if arr4[3] != types.ScopeDev {
-		t.Errorf("Expected scope at index 3, got '%s'", arr4[3])
+	if arrMaven[3] != types.ScopeDev {
+		t.Errorf("Expected scope 'dev' at index 3, got '%v'", arrMaven[3])
 	}
-
-	// Test 5-element format (scope and source)
-	json5, _ := json.Marshal(depWithScopeAndSource)
-	var arr5 []string
-	json.Unmarshal(json5, &arr5)
-	if len(arr5) != 5 {
-		t.Errorf("Expected 5 elements for scope+source dep, got %d: %v", len(arr5), arr5)
-	}
-	if arr5[3] != types.ScopeProd {
-		t.Errorf("Expected scope at index 3, got '%s'", arr5[3])
-	}
-	if arr5[4] != "package-lock.json" {
-		t.Errorf("Expected source at index 4, got '%s'", arr5[4])
+	if arrMaven[4] != true {
+		t.Errorf("Expected direct=true at index 4, got '%v'", arrMaven[4])
 	}
 
-	// Test 3-element format (no scope, no source)
-	json3, _ := json.Marshal(depNoScopeNoSource)
-	var arr3 []string
-	json.Unmarshal(json3, &arr3)
-	if len(arr3) != 3 {
-		t.Errorf("Expected 3 elements for no-scope-no-source dep, got %d: %v", len(arr3), arr3)
+	// Test NPM with metadata (6 elements)
+	jsonNPM, _ := json.Marshal(depWithMetadata)
+	var arrNPM []interface{}
+	json.Unmarshal(jsonNPM, &arrNPM)
+	if len(arrNPM) != 6 {
+		t.Errorf("Expected 6 elements for NPM dep, got %d: %v", len(arrNPM), arrNPM)
+	}
+	if arrNPM[3] != types.ScopeProd {
+		t.Errorf("Expected scope 'prod' at index 3, got '%v'", arrNPM[3])
+	}
+	if arrNPM[4] != true {
+		t.Errorf("Expected direct=true at index 4, got '%v'", arrNPM[4])
+	}
+	if metadata, ok := arrNPM[5].(map[string]interface{}); !ok {
+		t.Errorf("Expected metadata object at index 5, got %T", arrNPM[5])
+	} else if metadata["optional"] != true {
+		t.Errorf("Expected optional=true in metadata, got %v", metadata)
 	}
 
-	// Test 5-element format with empty scope (source but no scope)
-	json5empty, _ := json.Marshal(depSourceNoScope)
-	var arr5empty []string
-	json.Unmarshal(json5empty, &arr5empty)
-	if len(arr5empty) != 5 {
-		t.Errorf("Expected 5 elements for source-only dep, got %d: %v", len(arr5empty), arr5empty)
+	// Test Go (6 elements with empty metadata)
+	jsonGo, _ := json.Marshal(depGo)
+	var arrGo []interface{}
+	json.Unmarshal(jsonGo, &arrGo)
+	if len(arrGo) != 6 {
+		t.Errorf("Expected 6 elements for Go dep, got %d: %v", len(arrGo), arrGo)
 	}
-	if arr5empty[3] != "" {
-		t.Errorf("Expected empty scope at index 3, got '%s'", arr5empty[3])
+
+	// Test Python with source file (6 elements with source in metadata)
+	jsonPython, _ := json.Marshal(depPython)
+	var arrPython []interface{}
+	json.Unmarshal(jsonPython, &arrPython)
+	if len(arrPython) != 6 {
+		t.Errorf("Expected 6 elements for Python dep, got %d: %v", len(arrPython), arrPython)
 	}
-	if arr5empty[4] != "requirements.txt" {
-		t.Errorf("Expected source at index 4, got '%s'", arr5empty[4])
+	if metadata, ok := arrPython[5].(map[string]interface{}); !ok {
+		t.Errorf("Expected metadata object at index 5, got %T", arrPython[5])
+	} else if metadata["source"] != "requirements.txt" {
+		t.Errorf("Expected source='requirements.txt' in metadata, got %v", metadata)
 	}
 }
 
 func TestEmptyVersionHandling(t *testing.T) {
-	// Verify empty version doesn't cause issues with scope/source
+	// Verify empty version doesn't cause issues with 6-element format
 	tests := []struct {
 		name     string
 		dep      types.Dependency
-		wantLen  int
 		wantIdx2 string // version at index 2
-		wantIdx3 string // scope at index 3 (if present)
+		wantIdx3 string // scope at index 3
 	}{
 		{
 			name:     "empty version with scope and source",
-			dep:      types.Dependency{Type: "npm", Name: "pkg", Version: "", Scope: "prod", SourceFile: "package.json"},
-			wantLen:  5,
+			dep:      types.Dependency{Type: "npm", Name: "pkg", Version: "", Scope: "prod", SourceFile: "package.json", Direct: true},
 			wantIdx2: "",
 			wantIdx3: "prod",
 		},
 		{
 			name:     "empty version with scope only",
-			dep:      types.Dependency{Type: "maven", Name: "junit:junit", Version: "", Scope: "dev"},
-			wantLen:  4,
+			dep:      types.Dependency{Type: "maven", Name: "junit:junit", Version: "", Scope: "dev", Direct: true},
 			wantIdx2: "",
 			wantIdx3: "dev",
 		},
 		{
-			name:     "empty version no scope no source",
-			dep:      types.Dependency{Type: "delphi", Name: "Vcl", Version: ""},
-			wantLen:  3,
+			name:     "empty version no scope",
+			dep:      types.Dependency{Type: "delphi", Name: "Vcl", Version: "", Direct: false},
 			wantIdx2: "",
+			wantIdx3: "",
 		},
 	}
 
@@ -126,21 +136,22 @@ func TestEmptyVersionHandling(t *testing.T) {
 				t.Fatalf("Marshal failed: %v", err)
 			}
 
-			var arr []string
+			var arr []interface{}
 			if err := json.Unmarshal(jsonBytes, &arr); err != nil {
 				t.Fatalf("Unmarshal failed: %v", err)
 			}
 
-			if len(arr) != tt.wantLen {
-				t.Errorf("Expected %d elements, got %d: %v", tt.wantLen, len(arr), arr)
+			// All dependencies should now be 6 elements
+			if len(arr) != 6 {
+				t.Errorf("Expected 6 elements, got %d: %v", len(arr), arr)
 			}
 
 			if arr[2] != tt.wantIdx2 {
-				t.Errorf("Expected version '%s' at index 2, got '%s'", tt.wantIdx2, arr[2])
+				t.Errorf("Expected version '%s' at index 2, got '%v'", tt.wantIdx2, arr[2])
 			}
 
-			if tt.wantLen >= 4 && arr[3] != tt.wantIdx3 {
-				t.Errorf("Expected scope '%s' at index 3, got '%s'", tt.wantIdx3, arr[3])
+			if arr[3] != tt.wantIdx3 {
+				t.Errorf("Expected scope '%s' at index 3, got '%v'", tt.wantIdx3, arr[3])
 			}
 		})
 	}

@@ -216,8 +216,8 @@ The scanner outputs a hierarchical JSON structure showing detected technologies,
     "_": ["base image: nginx:alpine", "license detected: MIT"]
   },
   "dependencies": [
-    ["npm", "react", "^18.2.0"],
-    ["npm", "express", "^4.18.2"]
+    ["npm", "react", "^18.2.0", "prod", true, {"source": "package-lock.json"}],
+    ["npm", "express", "^4.18.2", "prod", true, {"source": "package-lock.json"}]
   ],
   "git": {
     "branch": "main",
@@ -261,9 +261,9 @@ The scanner outputs a hierarchical JSON structure showing detected technologies,
   "techs": ["nodejs", "react", "postgresql", "docker", "express", "vite"],
   "languages": {"JavaScript": 145, "TypeScript": 89, "CSS": 12},
   "dependencies": [
-    ["npm", "react", "^18.2.0"],
-    ["npm", "express", "^4.18.2"],
-    ["npm", "vite", "^5.0.0"]
+    ["npm", "react", "^18.2.0", "prod", true, {"source": "package-lock.json"}],
+    ["npm", "express", "^4.18.2", "prod", true, {"source": "package-lock.json"}],
+    ["npm", "vite", "^5.0.0", "dev", true, {"source": "package-lock.json"}]
   ],
   "git": [
     {
@@ -949,7 +949,7 @@ The scanner outputs a hierarchical JSON structure representing the detected tech
 - **techs**: Array of all technologies detected in this component (components + tools/libraries)
 - **languages**: Object mapping programming languages to file counts
 - **licenses**: Array of detected licenses in this component
-- **dependencies**: Array of detected dependencies with format `[type, name, version]`
+- **dependencies**: Array of detected dependencies with format `[type, name, version, scope, direct, metadata]` (always 6 elements)
 - **childs**: Array of nested components (sub-projects, services, etc.)
 - **edges**: Array of relationships between components (e.g., service → database connections); created for architectural components like databases, SaaS services, and monitoring tools, but not for hosting/cloud providers
 - **reason**: Object mapping technologies to detection reasons, with "_" key for non-tech reasons (licenses, base images, etc.)
@@ -1101,15 +1101,15 @@ This is common in projects with:
     "JavaScript": 12
   },
   "dependencies": [
-    ["npm", "express", "^4.18.0"],
-    ["npm", "pg", "^8.8.0"]
+    ["npm", "express", "^4.18.0", "prod", true, {"source": "package-lock.json"}],
+    ["npm", "pg", "^8.8.0", "prod", true, {"source": "package-lock.json"}]
   ],
   "childs": [
     {
       "id": "def456",
       "name": "frontend",
       "tech": ["nodejs"],
-      "dependencies": [["npm", "react", "^18.2.0"]]
+      "dependencies": [["npm", "react", "^18.2.0", "prod", true, {"source": "package-lock.json"}]]
     }
   ]
 }
@@ -1138,10 +1138,10 @@ Use the `--aggregate` flag to get a simplified, rolled-up view of your entire co
   },
   "licenses": ["MIT", "Apache-2.0"],
   "dependencies": [
-    ["npm", "react", "^18.2.0"],
-    ["npm", "express", "^4.18.0"],
-    ["python", "fastapi", "0.118.2"],
-    ["python", "pydantic", "latest"]
+    ["npm", "react", "^18.2.0", "prod", true, {"source": "package-lock.json"}],
+    ["npm", "express", "^4.18.0", "prod", true, {"source": "package-lock.json"}],
+    ["python", "fastapi", "0.118.2", "prod", true, {"source": "requirements.txt"}],
+    ["python", "pydantic", "latest", "prod", true, {"source": "requirements.txt"}]
   ],
   "git": [
     {
@@ -1165,7 +1165,7 @@ Use the `--aggregate` flag to get a simplified, rolled-up view of your entire co
 - `techs` - All detected technologies (includes frameworks, tools, libraries)
 - `languages` - Programming languages with file counts
 - `licenses` - Detected licenses from LICENSE files and package manifests
-- `dependencies` - All dependencies as `[type, name, version]` arrays
+- `dependencies` - All dependencies as `[type, name, version, scope, direct, metadata]` arrays (always 6 elements)
 - `git` - Git repositories (deduplicated) with branch, commit, dirty status, and remote URL
 - `all` - Aggregate all available fields (tech, techs, languages, licenses, dependencies, git) with metadata
 

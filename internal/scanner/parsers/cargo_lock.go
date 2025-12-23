@@ -28,6 +28,7 @@ func ParseCargoLock(lockContent []byte, cargoTomlContent string) []types.Depende
 				Version:    version,
 				SourceFile: "Cargo.lock",
 				Scope:      scope,
+				Direct:     true,
 			})
 		}
 	}

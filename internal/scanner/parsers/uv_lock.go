@@ -87,6 +87,7 @@ func ParseUvLock(content []byte, projectName string) []types.Dependency {
 			Name:       name,
 			Version:    version,
 			SourceFile: "uv.lock",
+			Direct:     true,
 		})
 	}
 

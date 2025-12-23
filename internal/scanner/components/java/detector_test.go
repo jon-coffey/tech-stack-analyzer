@@ -114,7 +114,7 @@ func TestDetector_Detect_MavenProject(t *testing.T) {
 	assert.NotEmpty(t, payload.Dependencies, "Should have parsed dependencies")
 	// Verify Maven properties
 	assert.Contains(t, payload.Properties, "maven", "Should have maven properties")
-	mavenProps := payload.Properties["maven"].(map[string]string)
+	mavenProps := payload.Properties["maven"].(map[string]interface{})
 	assert.Equal(t, "com.example", mavenProps["group_id"])
 	assert.Equal(t, "test-app", mavenProps["artifact_id"])
 }
@@ -276,7 +276,7 @@ dependencies {
 	assert.Contains(t, payload.Techs, "gradle", "Should also detect gradle")
 	// Verify Maven properties
 	assert.Contains(t, payload.Properties, "maven", "Should have maven properties")
-	mavenProps := payload.Properties["maven"].(map[string]string)
+	mavenProps := payload.Properties["maven"].(map[string]interface{})
 	assert.Equal(t, "com.example", mavenProps["group_id"])
 	assert.Equal(t, "mixed-app", mavenProps["artifact_id"])
 }

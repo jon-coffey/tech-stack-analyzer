@@ -83,25 +83,29 @@ func (p *ConanParser) ParseConanDependency(depString string, scope string) types
 		name := parts[0]
 		version := strings.Join(parts[1:], "/")
 		return types.Dependency{
-			Name:    name,
-			Version: version,
-			Type:    "conan",
-			Scope:   scope,
+			Name:     name,
+			Version:  version,
+			Type:     DependencyTypeConan,
+			Scope:    scope,
+			Direct:   true,
+			Metadata: types.NewMetadata(MetadataSourceConanfile),
 		}
 	}
 
 	// Fallback if no version found
 	return types.Dependency{
-		Name:    depString,
-		Version: "",
-		Type:    "conan",
-		Scope:   scope,
+		Name:     depString,
+		Version:  "",
+		Type:     DependencyTypeConan,
+		Scope:    scope,
+		Direct:   true,
+		Metadata: types.NewMetadata(MetadataSourceConanfile),
 	}
 }
 
 // ExtractDependenciesFromFiles extracts Conan dependencies from conanfile.py and packages*.txt files
 func (p *ConanParser) ExtractDependenciesFromFiles(conanContent string, packagesFiles []types.File, currentPath string, provider types.Provider) []types.Dependency {
-	var dependencies []types.Dependency
+	dependencies := make([]types.Dependency, 0)
 
 	// Parse conanfile.py dependencies
 	conanDeps := p.ExtractDependencies(conanContent)

@@ -118,11 +118,27 @@ func (d *Detector) detectPomXML(file types.File, currentPath, basePath string, p
 	// Extract Maven project info and add as properties
 	projectInfo = mavenParser.ExtractProjectInfo(string(content))
 	if projectInfo.GroupId != "" || projectInfo.ArtifactId != "" {
-		payload.Properties["maven"] = map[string]string{
+		mavenInfo := map[string]interface{}{
 			"group_id":    projectInfo.GroupId,
 			"artifact_id": projectInfo.ArtifactId,
 			"version":     projectInfo.Version,
 		}
+
+		// Add packaging if not default jar
+		if projectInfo.Packaging != "" && projectInfo.Packaging != "jar" {
+			mavenInfo["packaging"] = projectInfo.Packaging
+		}
+
+		// Add parent POM info if exists
+		if projectInfo.Parent.GroupId != "" {
+			mavenInfo["parent"] = map[string]string{
+				"group_id":    projectInfo.Parent.GroupId,
+				"artifact_id": projectInfo.Parent.ArtifactId,
+				"version":     projectInfo.Parent.Version,
+			}
+		}
+
+		payload.Properties["maven"] = mavenInfo
 	}
 
 	dependencies := mavenParser.ParsePomXMLWithProvider(string(content), currentPath, provider)
