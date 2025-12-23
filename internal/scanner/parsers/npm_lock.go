@@ -37,19 +37,20 @@ type ParsePackageLockOptions struct {
 // ParsePackageLock parses package-lock.json content and returns comprehensive dependencies
 // Enhanced with deps.dev patterns for transitive dependency analysis and scope detection
 func ParsePackageLock(content []byte, packageJSON *PackageJSON) []types.Dependency {
-	return ParsePackageLockWithOptions(content, packageJSON, ParsePackageLockOptions{})
+	return ParsePackageLockWithOptions(content, packageJSON, nil, ParsePackageLockOptions{})
 }
 
 // ParsePackageLockWithOptions parses package-lock.json content with configurable options
 // Enhanced with deps.dev patterns for transitive dependency analysis and scope detection
-func ParsePackageLockWithOptions(content []byte, packageJSON *PackageJSON, options ParsePackageLockOptions) []types.Dependency {
+// packageJSONContent is the raw package.json bytes (optional, for peer/optional dependency detection)
+func ParsePackageLockWithOptions(content []byte, packageJSON *PackageJSON, packageJSONContent []byte, options ParsePackageLockOptions) []types.Dependency {
 	var lockfile PackageLockJSON
 	if err := json.Unmarshal(content, &lockfile); err != nil {
 		return nil
 	}
 
 	// Build dependency scope maps from package.json
-	scopeMaps := buildDependencyScopeMaps(packageJSON, content)
+	scopeMaps := buildDependencyScopeMaps(packageJSON, packageJSONContent)
 
 	// Handle both v2 (dependencies) and v3+ (packages) lockfile formats
 	if len(lockfile.Packages) > 0 {
@@ -119,13 +120,16 @@ func parsePackagesV3(packages map[string]PackageInfo, options ParsePackageLockOp
 		}
 
 		scope := determineScopeFromLockfile(name, pkg, maps.prodDeps, maps.devDeps, maps.peerDeps, maps.optionalDeps)
+		isDirect := isDirectDependency(name, maps.prodDeps, maps.devDeps, maps.peerDeps, maps.optionalDeps)
 
 		dependencies = append(dependencies, types.Dependency{
 			Type:       "npm",
 			Name:       name,
 			Version:    pkg.Version,
-			SourceFile: "package-lock.json",
 			Scope:      scope,
+			Direct:     isDirect,
+			SourceFile: "package-lock.json",
+			Metadata:   buildNPMMetadata(name, pkg, maps.peerDeps, maps.optionalDeps),
 		})
 	}
 
@@ -169,13 +173,16 @@ func parseTopLevelDependenciesV2(dependencies map[string]PackageInfo, maps depen
 		}
 
 		scope := determineScopeFromLockfile(name, PackageInfo{Dev: dep.Dev, Optional: dep.Optional}, maps.prodDeps, maps.devDeps, maps.peerDeps, maps.optionalDeps)
+		isDirect := isDirectDependency(name, maps.prodDeps, maps.devDeps, maps.peerDeps, maps.optionalDeps)
 
 		result = append(result, types.Dependency{
 			Type:       "npm",
 			Name:       name,
 			Version:    dep.Version,
-			SourceFile: "package-lock.json",
 			Scope:      scope,
+			Direct:     isDirect,
+			SourceFile: "package-lock.json",
+			Metadata:   buildNPMMetadata(name, dep, maps.peerDeps, maps.optionalDeps),
 		})
 	}
 
@@ -251,13 +258,16 @@ func parseDependenciesV2(
 
 		// Determine scope
 		scope := determineScopeFromLockfile(name, dep, prodDeps, devDeps, peerDeps, optionalDeps)
+		isDirect := isDirectDependency(name, prodDeps, devDeps, peerDeps, optionalDeps)
 
 		dependencies = append(dependencies, types.Dependency{
 			Type:       "npm",
 			Name:       name,
 			Version:    dep.Version,
-			SourceFile: "package-lock.json",
 			Scope:      scope,
+			Direct:     isDirect,
+			SourceFile: "package-lock.json",
+			Metadata:   buildNPMMetadata(name, dep, peerDeps, optionalDeps),
 		})
 
 		// Recursively parse nested dependencies
@@ -270,6 +280,38 @@ func parseDependenciesV2(
 	}
 
 	return dependencies
+}
+
+// isDirectDependency checks if a dependency is declared in package.json (direct) or pulled in transitively
+func isDirectDependency(name string, prodDeps, devDeps, peerDeps, optionalDeps map[string]bool) bool {
+	return prodDeps[name] || devDeps[name] || peerDeps[name] || optionalDeps[name]
+}
+
+// buildNPMMetadata creates metadata map for NPM dependencies with peer, optional, and bundled flags
+func buildNPMMetadata(name string, pkg PackageInfo, peerDeps, optionalDeps map[string]bool) map[string]interface{} {
+	metadata := make(map[string]interface{})
+
+	// Add peer flag if true
+	if peerDeps[name] {
+		metadata["peer"] = true
+	}
+
+	// Add optional flag if true
+	if optionalDeps[name] || pkg.Optional {
+		metadata["optional"] = true
+	}
+
+	// Add bundled flag if true
+	if pkg.Bundled {
+		metadata["bundled"] = true
+	}
+
+	// Return nil if no metadata to add
+	if len(metadata) == 0 {
+		return nil
+	}
+
+	return metadata
 }
 
 // determineScopeFromLockfile determines the dependency scope based on package.json and lockfile metadata

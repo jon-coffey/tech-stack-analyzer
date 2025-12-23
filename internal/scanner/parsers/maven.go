@@ -201,6 +201,7 @@ func (p *MavenParser) ParsePomXMLWithProvider(content string, pomDir string, pro
 					Name:     dep.GroupId + ":" + dep.ArtifactId,
 					Version:  p.resolveVersion(dep.Version, properties),
 					Scope:    mapMavenScope(dep.Scope),
+					Direct:   true,
 					Metadata: p.buildMavenMetadata(dep),
 				})
 			}
@@ -215,6 +216,7 @@ func (p *MavenParser) ParsePomXMLWithProvider(content string, pomDir string, pro
 				Name:     dep.GroupId + ":" + dep.ArtifactId,
 				Version:  p.resolveVersion(dep.Version, properties),
 				Scope:    mapMavenScope(dep.Scope),
+				Direct:   true,
 				Metadata: p.buildMavenMetadata(dep),
 			})
 		}
@@ -254,6 +256,7 @@ func (p *MavenParser) parseDependencyManagement(deps []MavenDependency, properti
 					Name:    dep.GroupId + ":" + dep.ArtifactId,
 					Version: p.resolveVersion(dep.Version, properties),
 					Scope:   types.ScopeImport,
+					Direct:  true,
 				})
 			}
 		}
@@ -315,6 +318,7 @@ func (p *MavenParser) parsePluginDependencies(plugins []MavenPlugin, properties 
 					Name:     dep.GroupId + ":" + dep.ArtifactId,
 					Version:  p.resolveVersion(dep.Version, properties),
 					Scope:    types.ScopeBuild, // Plugin dependencies are build-time
+					Direct:   true,
 					Metadata: p.buildMavenMetadata(dep),
 				})
 			}

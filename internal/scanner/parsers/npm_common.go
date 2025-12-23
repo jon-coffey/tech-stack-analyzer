@@ -122,12 +122,16 @@ func (f *DependencyFilter) CreateDependency(depType, name, version, sourceFile s
 		return nil
 	}
 
+	// Check if this is a direct dependency (in directDeps map)
+	_, isDirect := f.directDeps[name]
+
 	return &types.Dependency{
 		Type:       depType,
 		Name:       name,
 		Version:    version,
 		SourceFile: sourceFile,
 		Scope:      f.GetScope(name),
+		Direct:     isDirect,
 	}
 }
 

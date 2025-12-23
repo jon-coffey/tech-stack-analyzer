@@ -43,7 +43,7 @@ func TestParsePackageLockWithTransitiveDependencies(t *testing.T) {
 
 	// Test 2: With transitive dependencies enabled
 	t.Run("with transitive dependencies", func(t *testing.T) {
-		deps := ParsePackageLockWithOptions([]byte(content), packageJSON, ParsePackageLockOptions{
+		deps := ParsePackageLockWithOptions([]byte(content), packageJSON, nil, ParsePackageLockOptions{
 			IncludeTransitive: true,
 		})
 
@@ -86,10 +86,6 @@ func TestParsePackageLockWithTransitiveDependencies(t *testing.T) {
 		// Verify enhanced features
 		if dep.Type != "npm" {
 			t.Errorf("Expected type 'npm', got '%s'", dep.Type)
-		}
-
-		if dep.SourceFile != "package-lock.json" {
-			t.Errorf("Expected source 'package-lock.json', got '%s'", dep.SourceFile)
 		}
 
 		if dep.Scope != "prod" {

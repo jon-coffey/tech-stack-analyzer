@@ -32,11 +32,11 @@ func (p *GolangParser) ParseGoMod(content string) []types.Dependency {
 			continue
 		}
 
-		// Create dependency with version
 		dependencies = append(dependencies, types.Dependency{
 			Type:    "golang",
 			Name:    req.Mod.Path,
 			Version: req.Mod.Version,
+			Direct:  true,
 		})
 	}
 

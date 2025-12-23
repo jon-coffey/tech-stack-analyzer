@@ -46,6 +46,7 @@ func (p *PythonParser) ParseRequirementsTxt(content string) []types.Dependency {
 				Name:       p.canonPackageName(dep.Name),
 				Version:    p.resolveVersion(dep.Constraint),
 				SourceFile: "requirements.txt",
+				Direct:     true,
 			})
 		}
 	}
@@ -253,6 +254,7 @@ func (p *pyprojectParserEnhanced) parseDependencyLine(line string) {
 			Name:       p.enhancedParser.canonPackageName(dep.Name),
 			Version:    p.enhancedParser.resolveVersion(dep.Constraint),
 			SourceFile: "pyproject.toml",
+			Direct:     true,
 		})
 	}
 }

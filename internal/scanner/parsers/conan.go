@@ -87,6 +87,7 @@ func (p *ConanParser) ParseConanDependency(depString string, scope string) types
 			Version: version,
 			Type:    "conan",
 			Scope:   scope,
+			Direct:  true,
 		}
 	}
 
@@ -96,6 +97,7 @@ func (p *ConanParser) ParseConanDependency(depString string, scope string) types
 		Version: "",
 		Type:    "conan",
 		Scope:   scope,
+		Direct:  true,
 	}
 }
 

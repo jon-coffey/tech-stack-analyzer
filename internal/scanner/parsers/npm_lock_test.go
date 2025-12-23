@@ -93,9 +93,6 @@ func TestParsePackageLock(t *testing.T) {
 				if dep.Type != "npm" {
 					t.Errorf("ParsePackageLock() dep.Type = %s, want npm", dep.Type)
 				}
-				if dep.SourceFile != "package-lock.json" {
-					t.Errorf("ParsePackageLock() dep.SourceFile = %s, want package-lock.json", dep.SourceFile)
-				}
 				if dep.Scope != types.ScopeProd {
 					t.Errorf("ParsePackageLock() dep.Scope = %s, want %s", dep.Scope, types.ScopeProd)
 				}
