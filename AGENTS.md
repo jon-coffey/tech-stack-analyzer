@@ -35,6 +35,35 @@ task pre-commit:run     # Run pre-commit hooks
 task run -- /path       # Test scanner on directory
 ```
 
+## Running the Scanner
+
+After building with `task build`, the scanner binary is available at `./bin/stack-analyzer`:
+
+```bash
+# Basic scan (outputs to stack-analysis.json)
+./bin/stack-analyzer scan /path/to/project
+
+# Scan with custom output file
+./bin/stack-analyzer scan -o /tmp/output.json /path/to/project
+
+# Scan with verbose output
+./bin/stack-analyzer scan -v /path/to/project
+
+# Scan with debug output (shows directory tree)
+./bin/stack-analyzer scan -d /path/to/project
+
+# Scan with exclusions (multiple --exclude options are supported, .gitignore syntax, .gitignore is used when available)
+./bin/stack-analyzer scan --exclude "node_modules" --exclude "vendor" /path/to/project
+
+# View available options
+./bin/stack-analyzer scan --help
+```
+
+**Common use cases:**
+- Test on local project: `./bin/stack-analyzer scan -o /tmp/scan.json /path/to/project`
+- Quick test during development: `task run -- /path/to/project`
+- Production scan: `./bin/stack-analyzer scan -o results.json --exclude "node_modules" /project`
+
 ## Configuration
 
 The scanner supports configuration via `.stack-analyzer.yml` in project root:
@@ -161,6 +190,7 @@ func TestDetector(t *testing.T) {
 - NEVER push to remote without explicit user permission
 - If we change structure of the output, `schemas/stack-analyzer-output.json` needs to be updated
 - After updating `schemas/stack-analyzer-output.json` schema, the example outputs shall be re-created using `task build:examples`
+- Add package-level documentation comment to all Go packages (required for godoc and code clarity)
 
 ### Security
 - No path traversal, no `exec.Command`, no hardcoded secrets
