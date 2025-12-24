@@ -39,12 +39,25 @@ func (d *Detector) Detect(files []types.File, currentPath, basePath string, prov
 
 // detectMaven looks for pom.xml and creates a Maven payload
 func (d *Detector) detectMaven(files []types.File, currentPath, basePath string, provider types.Provider, depDetector components.DependencyDetector) *types.Payload {
-	for _, file := range files {
-		if file.Name == "pom.xml" {
-			return d.detectPomXML(file, currentPath, basePath, provider, depDetector)
+	var payload *types.Payload
+	var dependencyListFile *types.File
+
+	// Look for pom.xml and dependency-list.txt
+	for i := range files {
+		if files[i].Name == "pom.xml" {
+			payload = d.detectPomXML(files[i], currentPath, basePath, provider, depDetector)
+		}
+		if files[i].Name == "dependency-list.txt" {
+			dependencyListFile = &files[i]
 		}
 	}
-	return nil
+
+	// If we have dependency-list.txt, use it for resolved versions
+	if payload != nil && dependencyListFile != nil {
+		d.mergeDependencyList(payload, *dependencyListFile, currentPath, provider)
+	}
+
+	return payload
 }
 
 // detectGradleOnly looks for Gradle files when no Maven was found
@@ -85,6 +98,45 @@ func (d *Detector) addGradleInfoToMaven(payload *types.Payload, files []types.Fi
 					payload.Properties["gradle"] = gradleProps
 				}
 			}
+		}
+	}
+}
+
+// mergeDependencyList merges dependency list data into the payload
+func (d *Detector) mergeDependencyList(payload *types.Payload, listFile types.File, currentPath string, provider types.Provider) {
+	content, err := provider.ReadFile(filepath.Join(currentPath, listFile.Name))
+	if err != nil {
+		return
+	}
+
+	listParser := parsers.NewMavenDependencyListParser()
+	// Only include direct dependencies for now (includeTransitive=false)
+	// This can be changed later to support transitive dependencies
+	listDeps := listParser.ParseDependencyList(string(content), false)
+
+	if len(listDeps) == 0 {
+		return
+	}
+
+	// Create a map of existing dependencies for quick lookup
+	existingDeps := make(map[string]int)
+	for i, dep := range payload.Dependencies {
+		existingDeps[dep.Name] = i
+	}
+
+	// Update versions for direct dependencies from pom.xml
+	for _, listDep := range listDeps {
+		if idx, exists := existingDeps[listDep.Name]; exists {
+			// This is a direct dependency from pom.xml - update its version
+			originalMetadata := payload.Dependencies[idx].Metadata
+			payload.Dependencies[idx].Version = listDep.Version
+
+			// Add source marker to indicate dependency list source
+			if originalMetadata == nil {
+				originalMetadata = make(map[string]interface{})
+			}
+			originalMetadata["source"] = "dependency-list"
+			payload.Dependencies[idx].Metadata = originalMetadata
 		}
 	}
 }
