@@ -133,7 +133,9 @@ func (p *Payload) AddChild(service *Payload) *Payload {
 		if len(child.Tech) == 0 && len(service.Tech) == 0 {
 			continue
 		}
-		if child.Name == service.Name {
+		// Only merge components with the same name AND at least one overlapping path
+		// This prevents merging components from different directories that happen to share a name
+		if child.Name == service.Name && hasOverlappingPath(child.Path, service.Path) {
 			exist = child
 			break
 		}
@@ -170,6 +172,19 @@ func (p *Payload) AddChild(service *Payload) *Payload {
 	// Add new child if no duplicate found
 	p.Childs = append(p.Childs, service)
 	return service
+}
+
+// hasOverlappingPath checks if two path arrays have at least one common path
+// This is used to determine if components should be merged
+func hasOverlappingPath(paths1, paths2 []string) bool {
+	for _, p1 := range paths1 {
+		for _, p2 := range paths2 {
+			if p1 == p2 {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // AddPath adds a path to the payload (like TypeScript Set.add)
