@@ -2,7 +2,7 @@ tech: angular
 name: Angular
 dependencies:
   - type: npm
-    name: angular
-    example: angular
+    name: /^@angular\//
+    example: "@angular/core"
 files:
   - angular.json
