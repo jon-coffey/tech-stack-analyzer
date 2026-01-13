@@ -5,3 +5,4 @@ dependencies:
     name: angular
   - type: npm
     name: /^@angularjs/
+is_primary_tech: true
