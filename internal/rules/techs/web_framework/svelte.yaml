@@ -16,4 +16,3 @@ dependencies:
   - type: npm
     name: /^@sveltejs/.*/
     example: "@sveltejs/adapter-auto"
-is_primary_tech: true

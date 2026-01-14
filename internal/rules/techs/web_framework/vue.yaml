@@ -10,4 +10,3 @@ dependencies:
   - type: npm
     name: vue-tsc
     example: vue-tsc
-is_primary_tech: true

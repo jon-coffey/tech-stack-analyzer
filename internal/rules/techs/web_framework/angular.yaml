@@ -6,4 +6,3 @@ dependencies:
     example: "@angular/core"
 files:
   - angular.json
-is_primary_tech: true
