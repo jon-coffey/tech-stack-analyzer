@@ -59,6 +59,11 @@ func (d *Detector) detectComposerJSON(file types.File, currentPath, basePath str
 	// Set tech field to php
 	payload.AddPrimaryTech("php")
 
+	// Store package name in properties for inter-component dependency tracking
+	payload.Properties["php"] = map[string]string{
+		"package_name": projectName,
+	}
+
 	// Extract dependency names for tech matching
 	var depNames []string
 	for _, dep := range dependencies {

@@ -54,6 +54,11 @@ func (d *Detector) Detect(files []types.File, currentPath, basePath string, prov
 		// Set tech field to python
 		payload.AddPrimaryTech("python")
 
+		// Store package name in properties for inter-component dependency tracking
+		payload.Properties["python"] = map[string]string{
+			"package_name": projectName,
+		}
+
 		// Parse dependencies using lock file priority system
 		dependencies := extractDependenciesWithPriority(currentPath, projectName, string(content), provider)
 

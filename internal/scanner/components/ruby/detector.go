@@ -67,6 +67,11 @@ func (d *Detector) detectGemfile(file types.File, currentPath, basePath string, 
 	// Set tech field to ruby
 	payload.AddPrimaryTech("ruby")
 
+	// Store gem name in properties for inter-component dependency tracking
+	payload.Properties["ruby"] = map[string]string{
+		"gem_name": projectName,
+	}
+
 	var dependencies []types.Dependency
 
 	// Prefer Gemfile.lock for exact versions if available

@@ -669,70 +669,18 @@ func (s *Scanner) detectComponents(payload, ctx *types.Payload, files []types.Fi
 		s.mergeVirtualPayload(payload, virtual, currentPath)
 	}
 
-	// Handle named components
+	// Handle named components - keep them separate to preserve granularity
 	if len(namedComponents) == 0 {
 		return ctx
-	} else if len(namedComponents) == 1 {
-		// Single component - add it normally
-		ctx = s.addNamedComponent(payload, namedComponents[0], currentPath)
-	} else {
-		// Multiple components in same directory - merge them
-		merged := s.mergeComponents(namedComponents)
-		ctx = s.addNamedComponent(payload, merged, currentPath)
+	}
+
+	// Add each component separately (don't merge)
+	// This preserves architectural clarity and dependency tracking
+	for _, component := range namedComponents {
+		ctx = s.addNamedComponent(payload, component, currentPath)
 	}
 
 	return ctx
-}
-
-func (s *Scanner) mergeComponents(components []*types.Payload) *types.Payload {
-	if len(components) == 0 {
-		return nil
-	}
-
-	// Use first component as base
-	base := components[0]
-
-	// Merge all other components into the base
-	for i := 1; i < len(components); i++ {
-		comp := components[i]
-
-		// Merge primary techs
-		for _, tech := range comp.Tech {
-			base.AddPrimaryTech(tech)
-		}
-
-		// Merge all techs
-		for _, tech := range comp.Techs {
-			base.AddTech(tech, "merged from multiple detectors")
-		}
-
-		// Merge dependencies
-		for _, dep := range comp.Dependencies {
-			base.AddDependency(dep)
-		}
-
-		// Merge paths
-		for _, path := range comp.Path {
-			base.AddPath(path)
-		}
-
-		// Merge licenses
-		for _, license := range comp.Licenses {
-			base.AddLicense(license)
-		}
-
-		// Copy component reasons to base payload for visibility
-		if len(comp.Reason) > 0 {
-			// Only copy the "_" (non-tech) reasons, not tech-specific ones
-			if nonTechReasons, exists := comp.Reason["_"]; exists {
-				for _, reason := range nonTechReasons {
-					base.AddReason(reason)
-				}
-			}
-		}
-	}
-
-	return base
 }
 
 func (s *Scanner) mergeVirtualPayload(target, virtual *types.Payload, currentPath string) {

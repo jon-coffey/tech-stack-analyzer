@@ -128,12 +128,13 @@ func (d *Detector) detectDotNetProject(file types.File, currentPath, basePath st
 		payload.AddTech(languageTech, "matched file: "+file.Name)
 	}
 
-	// Add framework version as component property (following Maven/Go pattern)
+	// Add .NET project info as component property (following Maven/Go pattern)
+	dotnetInfo := make(map[string]interface{})
+	dotnetInfo["assembly_name"] = project.Name // Package identifier for inter-component dependencies
 	if project.Framework != "" {
-		dotnetInfo := make(map[string]interface{})
 		dotnetInfo["framework"] = project.Framework
-		payload.Properties["dotnet"] = dotnetInfo
 	}
+	payload.Properties["dotnet"] = dotnetInfo
 
 	// Add NuGet package dependencies
 	for _, pkg := range project.Packages {

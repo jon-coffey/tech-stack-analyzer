@@ -74,6 +74,11 @@ func (d *Detector) processPackageJSON(file types.File, currentPath, basePath str
 	payload := types.NewPayloadWithPath(packageJSON.Name, relativeFilePath)
 	payload.AddPrimaryTech("nodejs")
 
+	// Add Node.js package info as component property for inter-component dependencies
+	nodejsInfo := make(map[string]interface{})
+	nodejsInfo["package_name"] = packageJSON.Name // Package identifier (e.g., "@org/package")
+	payload.Properties["nodejs"] = nodejsInfo
+
 	// Process dependencies using priority-based extraction (lock files first)
 	d.processDependenciesWithPriority(currentPath, provider, depDetector, payload)
 

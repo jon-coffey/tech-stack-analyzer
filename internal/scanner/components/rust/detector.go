@@ -58,6 +58,11 @@ func (d *Detector) detectCargoToml(file types.File, currentPath, basePath string
 
 		// Set tech field to rust
 		payload.AddPrimaryTech("rust")
+
+		// Store crate name in properties for inter-component dependency tracking
+		payload.Properties["rust"] = map[string]string{
+			"crate_name": projectName,
+		}
 	} else {
 		// Virtual payload for workspace files or files without [package] section
 		payload = types.NewPayloadWithPath("virtual", relativeFilePath)
