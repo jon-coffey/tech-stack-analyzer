@@ -127,6 +127,10 @@
                         "type": "string"
                     }
                 },
+                "type": {
+                    "type": "string",
+                    "description": "Type of component (e.g., 'maven', 'nodejs', 'python', 'dotnet')"
+                },
                 "tech": {
                     "anyOf": [
                         {
@@ -167,6 +171,25 @@
                         "$ref": "#/definitions/dependency"
                     },
                     "description": "List of dependencies detected in this component"
+                },
+                "component_dependencies": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "target_id": {
+                                "type": "string",
+                                "description": "Component ID being depended on"
+                            },
+                            "package_name": {
+                                "type": "string",
+                                "description": "Package name that created the link"
+                            }
+                        },
+                        "required": ["target_id", "package_name"],
+                        "additionalProperties": false
+                    },
+                    "description": "Inter-component dependencies (outgoing - components this component depends on)"
                 },
                 "childs": {
                     "type": "array",

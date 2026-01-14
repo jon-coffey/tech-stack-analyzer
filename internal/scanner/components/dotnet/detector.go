@@ -7,6 +7,7 @@ import (
 
 	"github.com/petrarca/tech-stack-analyzer/internal/scanner/components"
 	"github.com/petrarca/tech-stack-analyzer/internal/scanner/parsers"
+	"github.com/petrarca/tech-stack-analyzer/internal/scanner/providers"
 	"github.com/petrarca/tech-stack-analyzer/internal/types"
 )
 
@@ -104,6 +105,7 @@ func (d *Detector) detectDotNetProject(file types.File, currentPath, basePath st
 	}
 
 	payload := types.NewPayloadWithPath(project.Name, relativeFilePath)
+	payload.SetComponentType("dotnet")
 
 	// Determine language based on file extension
 	var languageTech string
@@ -235,4 +237,14 @@ func (d *Detector) applyCentralPackageVersions(payload *types.Payload, centralVe
 
 func init() {
 	components.Register(&Detector{})
+
+	// Register .NET package provider for component dependency resolution
+	providers.Register(&providers.PackageProvider{
+		DependencyType:      "nuget",
+		ExtractPackageNames: providers.SinglePropertyExtractor("dotnet", "assembly_name"),
+		MatchFunc: func(componentPkgName, dependencyName string) bool {
+			// NuGet package names are case-insensitive
+			return strings.EqualFold(componentPkgName, dependencyName)
+		},
+	})
 }

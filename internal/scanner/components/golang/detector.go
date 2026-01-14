@@ -7,6 +7,7 @@ import (
 
 	"github.com/petrarca/tech-stack-analyzer/internal/scanner/components"
 	"github.com/petrarca/tech-stack-analyzer/internal/scanner/parsers"
+	"github.com/petrarca/tech-stack-analyzer/internal/scanner/providers"
 	"github.com/petrarca/tech-stack-analyzer/internal/types"
 )
 
@@ -41,6 +42,7 @@ func (d *Detector) Detect(files []types.File, currentPath, basePath string, prov
 				relativeFilePath = "/" + relativeFilePath
 			}
 			payload := types.NewPayloadWithPath(folderName, relativeFilePath)
+			payload.SetComponentType("golang")
 			payload.AddPrimaryTech("golang")
 			results = append(results, payload)
 			break
@@ -65,6 +67,7 @@ func (d *Detector) detectGoMod(file types.File, currentPath, basePath string, pr
 		relativeFilePath = "/" + relativeFilePath
 	}
 	payload := types.NewPayloadWithPath(folderName, relativeFilePath)
+	payload.SetComponentType("golang")
 
 	// Set tech field to golang
 	payload.AddPrimaryTech("golang")
@@ -114,4 +117,10 @@ func (d *Detector) detectGoMod(file types.File, currentPath, basePath string, pr
 
 func init() {
 	components.Register(&Detector{})
+
+	// Register golang package provider
+	providers.Register(&providers.PackageProvider{
+		DependencyType:      "golang",
+		ExtractPackageNames: providers.SinglePropertyExtractor("golang", "module_path"),
+	})
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/petrarca/tech-stack-analyzer/internal/scanner/components"
 	"github.com/petrarca/tech-stack-analyzer/internal/scanner/parsers"
+	"github.com/petrarca/tech-stack-analyzer/internal/scanner/providers"
 	"github.com/petrarca/tech-stack-analyzer/internal/types"
 )
 
@@ -63,14 +64,13 @@ func (d *Detector) detectGemfile(file types.File, currentPath, basePath string, 
 		relativeFilePath = "/" + relativeFilePath
 	}
 	payload := types.NewPayloadWithPath(projectName, relativeFilePath)
+	payload.SetComponentType("ruby")
 
 	// Set tech field to ruby
 	payload.AddPrimaryTech("ruby")
 
 	// Store gem name in properties for inter-component dependency tracking
-	payload.Properties["ruby"] = map[string]string{
-		"gem_name": projectName,
-	}
+	payload.SetComponentProperty("ruby", "gem_name", projectName)
 
 	var dependencies []types.Dependency
 
@@ -126,4 +126,10 @@ func (d *Detector) extractProjectName(content string) string {
 
 func init() {
 	components.Register(&Detector{})
+
+	// Register rubygems package provider
+	providers.Register(&providers.PackageProvider{
+		DependencyType:      "rubygems",
+		ExtractPackageNames: providers.SinglePropertyExtractor("ruby", "gem_name"),
+	})
 }

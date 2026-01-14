@@ -13,27 +13,35 @@ import (
 
 // Payload represents the analysis result for a directory or component
 type Payload struct {
-	Metadata         interface{}            `json:"metadata,omitempty"`
-	Git              *git.GitInfo           `json:"git,omitempty"`
-	ID               string                 `json:"id"`
-	Name             string                 `json:"name"`
-	Path             []string               `json:"path"`
-	Tech             []string               `json:"tech"` // Changed from *string to []string to support multiple primary technologies
-	Techs            []string               `json:"techs"`
-	Languages        map[string]int         `json:"languages"`
-	PrimaryLanguages []PrimaryLanguage      `json:"primary_languages,omitempty"` // Top programming languages (from code_stats)
-	Licenses         []License              `json:"licenses"`                    // Changed to structured License objects
-	Reason           map[string][]string    `json:"reason"`                      // Maps technology to detection reasons, "_" for non-tech reasons
-	Dependencies     []Dependency           `json:"dependencies"`
-	Properties       map[string]interface{} `json:"properties,omitempty"`
-	Childs           []*Payload             `json:"childs"` // Changed from Children to Childs
-	Edges            []Edge                 `json:"edges"`
-	CodeStats        interface{}            `json:"code_stats,omitempty"`
+	Metadata              interface{}            `json:"metadata,omitempty"`
+	Git                   *git.GitInfo           `json:"git,omitempty"`
+	ID                    string                 `json:"id"`
+	Name                  string                 `json:"name"`
+	Path                  []string               `json:"path"`
+	ComponentType         string                 `json:"type,omitempty"` // Type of component (e.g., "maven", "nodejs", "python")
+	Tech                  []string               `json:"tech"`           // Changed from *string to []string to support multiple primary technologies
+	Techs                 []string               `json:"techs"`
+	Languages             map[string]int         `json:"languages"`
+	PrimaryLanguages      []PrimaryLanguage      `json:"primary_languages,omitempty"` // Top programming languages (from code_stats)
+	Licenses              []License              `json:"licenses"`                    // Changed to structured License objects
+	Reason                map[string][]string    `json:"reason"`                      // Maps technology to detection reasons, "_" for non-tech reasons
+	Dependencies          []Dependency           `json:"dependencies"`
+	Properties            map[string]interface{} `json:"properties,omitempty"`
+	Childs                []*Payload             `json:"childs"` // Changed from Children to Childs
+	Edges                 []Edge                 `json:"edges"`
+	ComponentDependencies []ComponentDependency  `json:"component_dependencies,omitempty"` // Inter-component dependencies (outgoing - components this component depends on)
+	CodeStats             interface{}            `json:"code_stats,omitempty"`
 }
 
-// Edge represents a relationship between components
+// Edge represents a relationship between components and technologies
 type Edge struct {
 	Target *Payload `json:"target"`
+}
+
+// ComponentDependency represents a dependency between two components in the same project
+type ComponentDependency struct {
+	TargetID    string `json:"target_id"`    // Component ID being depended on
+	PackageName string `json:"package_name"` // Package name that created the link
 }
 
 // PrimaryLanguage represents a primary programming language (top languages by lines of code)
@@ -76,23 +84,77 @@ func NewPayload(name string, paths []string) *Payload {
 	}
 
 	return &Payload{
-		ID:           GenerateComponentID("temp", name, relativePath), // Temporary ID, will be replaced
-		Name:         name,
-		Path:         paths,
-		Techs:        make([]string, 0),
-		Languages:    make(map[string]int),
-		Dependencies: make([]Dependency, 0),
-		Childs:       make([]*Payload, 0),
-		Edges:        make([]Edge, 0),
-		Licenses:     make([]License, 0),
-		Reason:       make(map[string][]string),
-		Properties:   make(map[string]interface{}),
+		ID:                    GenerateComponentID("temp", name, relativePath), // Temporary ID, will be replaced
+		Name:                  name,
+		Path:                  paths,
+		Techs:                 make([]string, 0),
+		Languages:             make(map[string]int),
+		Dependencies:          make([]Dependency, 0),
+		Childs:                make([]*Payload, 0),
+		Edges:                 make([]Edge, 0),
+		ComponentDependencies: make([]ComponentDependency, 0),
+		Licenses:              make([]License, 0),
+		Reason:                make(map[string][]string),
+		Properties:            make(map[string]interface{}),
 	}
 }
 
 // NewPayloadWithPath creates a new payload with a single path (convenience function)
 func NewPayloadWithPath(name, path string) *Payload {
 	return NewPayload(name, []string{path})
+}
+
+// NewComponentPayload creates a payload for a component with common initialization pattern:
+// - Calculates relative file path
+// - Sets component type
+// - Adds primary tech
+// This eliminates the repetitive pattern found in all detectors.
+func NewComponentPayload(name, fileName, currentPath, basePath, componentType string) *Payload {
+	relPath := CalculateRelativePath(fileName, currentPath, basePath)
+	payload := NewPayloadWithPath(name, relPath)
+	payload.SetComponentType(componentType)
+	payload.AddPrimaryTech(componentType)
+	return payload
+}
+
+// CalculateRelativePath calculates the relative file path from basePath,
+// normalizing it to start with "/" or return "/" for root.
+// This eliminates the repeated pattern across all detectors.
+func CalculateRelativePath(fileName, currentPath, basePath string) string {
+	relativeFilePath, _ := filepath.Rel(basePath, filepath.Join(currentPath, fileName))
+	if relativeFilePath == "." {
+		return "/"
+	}
+	return "/" + relativeFilePath
+}
+
+// SetComponentProperty sets a property for a component technology.
+// Standardizes on map[string]interface{} for flexibility while providing a clean API.
+// Example: payload.SetComponentProperty("nodejs", "package_name", "@org/package")
+func (p *Payload) SetComponentProperty(techKey, propertyKey string, value interface{}) {
+	if p.Properties == nil {
+		p.Properties = make(map[string]interface{})
+	}
+
+	// Get or create the tech properties map
+	var techProps map[string]interface{}
+	if existing, ok := p.Properties[techKey].(map[string]interface{}); ok {
+		techProps = existing
+	} else {
+		techProps = make(map[string]interface{})
+	}
+
+	techProps[propertyKey] = value
+	p.Properties[techKey] = techProps
+}
+
+// SetComponentProperties sets multiple properties for a component technology.
+// Example: payload.SetComponentProperties("python", map[string]interface{}{"package_name": "myapp", "version": "1.0"})
+func (p *Payload) SetComponentProperties(techKey string, properties map[string]interface{}) {
+	if p.Properties == nil {
+		p.Properties = make(map[string]interface{})
+	}
+	p.Properties[techKey] = properties
 }
 
 // AssignIDs assigns unique IDs to the entire payload tree.
@@ -495,6 +557,12 @@ func (p *Payload) AddPrimaryTech(tech string) {
 		}
 	}
 	p.Tech = append(p.Tech, tech)
+}
+
+// SetComponentType sets the component type (e.g., "maven", "nodejs", "python")
+// This should be called by detectors to identify what kind of component this is
+func (p *Payload) SetComponentType(componentType string) {
+	p.ComponentType = componentType
 }
 
 // HasPrimaryTech checks if a technology is in the primary tech array

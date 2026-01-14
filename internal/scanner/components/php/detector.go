@@ -7,6 +7,7 @@ import (
 	licensenormalizer "github.com/petrarca/tech-stack-analyzer/internal/license"
 	"github.com/petrarca/tech-stack-analyzer/internal/scanner/components"
 	"github.com/petrarca/tech-stack-analyzer/internal/scanner/parsers"
+	"github.com/petrarca/tech-stack-analyzer/internal/scanner/providers"
 	"github.com/petrarca/tech-stack-analyzer/internal/types"
 )
 
@@ -55,14 +56,13 @@ func (d *Detector) detectComposerJSON(file types.File, currentPath, basePath str
 		relativeFilePath = "/" + relativeFilePath
 	}
 	payload := types.NewPayloadWithPath(projectName, relativeFilePath)
+	payload.SetComponentType("php")
 
 	// Set tech field to php
 	payload.AddPrimaryTech("php")
 
 	// Store package name in properties for inter-component dependency tracking
-	payload.Properties["php"] = map[string]string{
-		"package_name": projectName,
-	}
+	payload.SetComponentProperty("php", "package_name", projectName)
 
 	// Extract dependency names for tech matching
 	var depNames []string
@@ -135,4 +135,10 @@ func (d *Detector) detectLicense(license string) string {
 
 func init() {
 	components.Register(&Detector{})
+
+	// Register composer package provider
+	providers.Register(&providers.PackageProvider{
+		DependencyType:      "composer",
+		ExtractPackageNames: providers.SinglePropertyExtractor("php", "package_name"),
+	})
 }

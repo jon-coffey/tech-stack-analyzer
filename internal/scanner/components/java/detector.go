@@ -6,6 +6,7 @@ import (
 
 	"github.com/petrarca/tech-stack-analyzer/internal/scanner/components"
 	"github.com/petrarca/tech-stack-analyzer/internal/scanner/parsers"
+	"github.com/petrarca/tech-stack-analyzer/internal/scanner/providers"
 	"github.com/petrarca/tech-stack-analyzer/internal/types"
 )
 
@@ -163,6 +164,7 @@ func (d *Detector) detectPomXML(file types.File, currentPath, basePath string, p
 		relativeFilePath = "/" + relativeFilePath
 	}
 	payload := types.NewPayloadWithPath(projectName, relativeFilePath)
+	payload.SetComponentType("maven")
 
 	// Set tech field to java (covers both Java and Kotlin projects)
 	payload.AddPrimaryTech("java")
@@ -242,6 +244,7 @@ func (d *Detector) detectGradle(file types.File, currentPath, basePath string, p
 		relativeFilePath = "/" + relativeFilePath
 	}
 	payload := types.NewPayloadWithPath(projectName, relativeFilePath)
+	payload.SetComponentType("gradle")
 
 	// Set tech field to java (covers both Java and Kotlin projects)
 	payload.AddPrimaryTech("java")
@@ -254,11 +257,11 @@ func (d *Detector) detectGradle(file types.File, currentPath, basePath string, p
 		if artifactName == "" {
 			artifactName = projectName
 		}
-		payload.Properties["gradle"] = map[string]string{
+		payload.SetComponentProperties("gradle", map[string]interface{}{
 			"group_id":    projectInfo.Group,
 			"artifact_id": artifactName,
 			"version":     projectInfo.Version,
-		}
+		})
 	}
 
 	dependencies := gradleParser.ParseGradle(string(content))
@@ -301,4 +304,16 @@ func (d *Detector) formatProjectName(groupId, artifactId string) string {
 
 func init() {
 	components.Register(&Detector{})
+
+	// Register maven package provider
+	providers.Register(&providers.PackageProvider{
+		DependencyType:      "maven",
+		ExtractPackageNames: providers.GroupArtifactExtractor("maven"),
+	})
+
+	// Register gradle package provider (same pattern as maven)
+	providers.Register(&providers.PackageProvider{
+		DependencyType:      "gradle",
+		ExtractPackageNames: providers.GroupArtifactExtractor("gradle"),
+	})
 }

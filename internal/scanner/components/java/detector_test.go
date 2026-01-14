@@ -174,7 +174,7 @@ dependencies {
 	assert.NotEmpty(t, payload.Dependencies, "Should have parsed dependencies")
 	// Verify Gradle properties
 	assert.Contains(t, payload.Properties, "gradle", "Should have gradle properties")
-	gradleProps := payload.Properties["gradle"].(map[string]string)
+	gradleProps := payload.Properties["gradle"].(map[string]interface{})
 	assert.Equal(t, "com.example", gradleProps["group_id"])
 	assert.Equal(t, "test-gradle-app", gradleProps["artifact_id"])
 }

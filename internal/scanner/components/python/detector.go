@@ -9,6 +9,7 @@ import (
 	"github.com/petrarca/tech-stack-analyzer/internal/license"
 	"github.com/petrarca/tech-stack-analyzer/internal/scanner/components"
 	"github.com/petrarca/tech-stack-analyzer/internal/scanner/parsers"
+	"github.com/petrarca/tech-stack-analyzer/internal/scanner/providers"
 	"github.com/petrarca/tech-stack-analyzer/internal/types"
 )
 
@@ -50,14 +51,13 @@ func (d *Detector) Detect(files []types.File, currentPath, basePath string, prov
 		}
 
 		payload := types.NewPayloadWithPath(projectName, relativeFilePath)
+		payload.SetComponentType("python")
 
 		// Set tech field to python
 		payload.AddPrimaryTech("python")
 
 		// Store package name in properties for inter-component dependency tracking
-		payload.Properties["python"] = map[string]string{
-			"package_name": projectName,
-		}
+		payload.SetComponentProperty("python", "package_name", projectName)
 
 		// Parse dependencies using lock file priority system
 		dependencies := extractDependenciesWithPriority(currentPath, projectName, string(content), provider)
@@ -440,4 +440,10 @@ func licenseExists(licenses []types.License, license string) bool {
 func init() {
 	// Auto-register this detector
 	components.Register(&Detector{})
+
+	// Register pypi package provider
+	providers.Register(&providers.PackageProvider{
+		DependencyType:      "pypi",
+		ExtractPackageNames: providers.SinglePropertyExtractor("python", "package_name"),
+	})
 }

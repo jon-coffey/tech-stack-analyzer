@@ -7,6 +7,7 @@ import (
 	licensenormalizer "github.com/petrarca/tech-stack-analyzer/internal/license"
 	"github.com/petrarca/tech-stack-analyzer/internal/scanner/components"
 	"github.com/petrarca/tech-stack-analyzer/internal/scanner/parsers"
+	"github.com/petrarca/tech-stack-analyzer/internal/scanner/providers"
 	"github.com/petrarca/tech-stack-analyzer/internal/types"
 )
 
@@ -55,14 +56,13 @@ func (d *Detector) detectCargoToml(file types.File, currentPath, basePath string
 	if !isWorkspace && projectName != "" {
 		// Named component for projects with [package] section (not workspace)
 		payload = types.NewPayloadWithPath(projectName, relativeFilePath)
+		payload.SetComponentType("rust")
 
 		// Set tech field to rust
 		payload.AddPrimaryTech("rust")
 
 		// Store crate name in properties for inter-component dependency tracking
-		payload.Properties["rust"] = map[string]string{
-			"crate_name": projectName,
-		}
+		payload.SetComponentProperty("rust", "crate_name", projectName)
 	} else {
 		// Virtual payload for workspace files or files without [package] section
 		payload = types.NewPayloadWithPath("virtual", relativeFilePath)
@@ -176,4 +176,10 @@ func (d *Detector) detectLicense(license string) string {
 
 func init() {
 	components.Register(&Detector{})
+
+	// Register cargo package provider
+	providers.Register(&providers.PackageProvider{
+		DependencyType:      "cargo",
+		ExtractPackageNames: providers.SinglePropertyExtractor("rust", "crate_name"),
+	})
 }

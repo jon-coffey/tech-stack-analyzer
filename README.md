@@ -230,8 +230,12 @@ The scanner outputs a hierarchical JSON structure showing detected technologies,
       "id": "backend",
       "name": "backend", 
       "path": "/backend",
+      "type": "npm-package",
       "tech": ["nodejs"],
       "techs": ["nodejs", "express", "postgresql"],
+      "component_dependencies": [
+        ["docker-base-image", "node", "20-alpine", "", {"file": "/backend/Dockerfile"}]
+      ],
       "git": {
         "branch": "develop",
         "commit": "def5678",
@@ -945,11 +949,13 @@ The scanner outputs a hierarchical JSON structure representing the detected tech
 - **id**: Unique identifier for each component
 - **name**: Component name (e.g., "main", "frontend", "backend")
 - **path**: File system path relative to the project root
+- **type**: Component type (e.g., "npm-package", "maven-module", "docker-compose-service") - present when the component detector provides it
 - **tech**: Array of primary technologies for this component (e.g., `["nodejs", "java"]` for hybrid projects)
 - **techs**: Array of all technologies detected in this component (components + tools/libraries)
 - **languages**: Object mapping programming languages to file counts
 - **licenses**: Array of detected licenses in this component
 - **dependencies**: Array of detected dependencies with format `[type, name, version, scope, direct, metadata]` (always 6 elements)
+- **component_dependencies**: Array of component-level dependencies (e.g., Docker base images, parent Maven modules) with format `[type, name, version, scope, metadata]` (always 5 elements)
 - **childs**: Array of nested components (sub-projects, services, etc.)
 - **edges**: Array of relationships between components (e.g., service → database connections); created for architectural components like databases, SaaS services, and monitoring tools, but not for hosting/cloud providers
 - **reason**: Object mapping technologies to detection reasons, with "_" key for non-tech reasons (licenses, base images, etc.)
@@ -957,6 +963,44 @@ The scanner outputs a hierarchical JSON structure representing the detected tech
 - **code_stats**: Code statistics with analyzed/unanalyzed buckets (only in root payload, see [Code Statistics](#code-statistics))
 - **git**: Git repository information (available at root and component levels for multi-repo projects)
 - **metadata**: Scan execution metadata (only in root payload)
+
+#### Dependencies vs Component Dependencies
+
+The scanner tracks two types of dependencies:
+
+**Package Dependencies** (`dependencies`):
+- Runtime and build-time library dependencies from package managers
+- Format: `[type, name, version, scope, direct, metadata]` (6 elements)
+- Examples: npm packages, Python packages, Maven artifacts, NuGet packages
+- The `direct` field indicates if it's a direct dependency (true) or transitive (false)
+
+```json
+"dependencies": [
+  ["npm", "react", "18.2.0", "prod", true, {"source": "package-lock.json"}],
+  ["npm", "express", "4.18.2", "prod", true, {"source": "package-lock.json"}],
+  ["python", "django", "4.2.0", "prod", true, {"source": "requirements.txt"}]
+]
+```
+
+**Component Dependencies** (`component_dependencies`):
+- Structural dependencies between components or infrastructure elements
+- Format: `[type, name, version, scope, metadata]` (5 elements, no `direct` field)
+- Examples: Docker base images, Maven parent modules, Gradle project dependencies
+- Represents architectural relationships rather than code-level dependencies
+
+```json
+"component_dependencies": [
+  ["docker-base-image", "node", "20-alpine", "", {"file": "/backend/Dockerfile"}],
+  ["docker-base-image", "nginx", "alpine", "", {"file": "/frontend/Dockerfile"}],
+  ["maven-parent", "spring-boot-starter-parent", "3.2.0", "", {"file": "/pom.xml"}]
+]
+```
+
+**Key Differences:**
+- **Package dependencies** track library/package imports and are versioned with ranges or exact versions
+- **Component dependencies** track architectural relationships and infrastructure choices
+- **Package dependencies** include the `direct` boolean flag; component dependencies do not
+- **Package dependencies** flow through the dependency tree; component dependencies are component-specific
 
 #### Metadata Field
 

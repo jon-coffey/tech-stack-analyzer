@@ -9,6 +9,7 @@ import (
 	licensenormalizer "github.com/petrarca/tech-stack-analyzer/internal/license"
 	"github.com/petrarca/tech-stack-analyzer/internal/scanner/components"
 	"github.com/petrarca/tech-stack-analyzer/internal/scanner/parsers"
+	"github.com/petrarca/tech-stack-analyzer/internal/scanner/providers"
 	"github.com/petrarca/tech-stack-analyzer/internal/types"
 )
 
@@ -72,6 +73,7 @@ func (d *Detector) processPackageJSON(file types.File, currentPath, basePath str
 	}
 
 	payload := types.NewPayloadWithPath(packageJSON.Name, relativeFilePath)
+	payload.SetComponentType("nodejs")
 	payload.AddPrimaryTech("nodejs")
 
 	// Add Node.js package info as component property for inter-component dependencies
@@ -293,4 +295,10 @@ func (d *Detector) addLicenseToPayload(payload *types.Payload, license types.Lic
 func init() {
 	// Auto-register this detector
 	components.Register(&Detector{})
+
+	// Register npm package provider
+	providers.Register(&providers.PackageProvider{
+		DependencyType:      "npm",
+		ExtractPackageNames: providers.SinglePropertyExtractor("nodejs", "package_name"),
+	})
 }
