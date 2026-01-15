@@ -13,24 +13,24 @@ import (
 
 // Payload represents the analysis result for a directory or component
 type Payload struct {
-	Metadata              interface{}            `json:"metadata,omitempty"`
-	Git                   *git.GitInfo           `json:"git,omitempty"`
-	ID                    string                 `json:"id"`
-	Name                  string                 `json:"name"`
-	Path                  []string               `json:"path"`
-	ComponentType         string                 `json:"type,omitempty"` // Type of component (e.g., "maven", "nodejs", "python")
-	Tech                  []string               `json:"tech"`           // Changed from *string to []string to support multiple primary technologies
-	Techs                 []string               `json:"techs"`
-	Languages             map[string]int         `json:"languages"`
-	PrimaryLanguages      []PrimaryLanguage      `json:"primary_languages,omitempty"` // Top programming languages (from code_stats)
-	Licenses              []License              `json:"licenses"`                    // Changed to structured License objects
-	Reason                map[string][]string    `json:"reason"`                      // Maps technology to detection reasons, "_" for non-tech reasons
-	Dependencies          []Dependency           `json:"dependencies"`
-	Properties            map[string]interface{} `json:"properties,omitempty"`
-	Childs                []*Payload             `json:"childs"` // Changed from Children to Childs
-	Edges                 []Edge                 `json:"edges"`
-	ComponentDependencies []ComponentDependency  `json:"component_dependencies,omitempty"` // Inter-component dependencies (outgoing - components this component depends on)
-	CodeStats             interface{}            `json:"code_stats,omitempty"`
+	Metadata         interface{}            `json:"metadata,omitempty"`
+	Git              *git.GitInfo           `json:"git,omitempty"`
+	ID               string                 `json:"id"`
+	Name             string                 `json:"name"`
+	Path             []string               `json:"path"`
+	ComponentType    string                 `json:"type,omitempty"` // Type of component (e.g., "maven", "nodejs", "python")
+	Tech             []string               `json:"tech"`           // Changed from *string to []string to support multiple primary technologies
+	Techs            []string               `json:"techs"`
+	Languages        map[string]int         `json:"languages"`
+	PrimaryLanguages []PrimaryLanguage      `json:"primary_languages,omitempty"` // Top programming languages (from code_stats)
+	Licenses         []License              `json:"licenses"`                    // Changed to structured License objects
+	Reason           map[string][]string    `json:"reason"`                      // Maps technology to detection reasons, "_" for non-tech reasons
+	Dependencies     []Dependency           `json:"dependencies"`
+	Properties       map[string]interface{} `json:"properties,omitempty"`
+	Childs           []*Payload             `json:"childs"` // Changed from Children to Childs
+	Edges            []Edge                 `json:"edges"`
+	ComponentRefs    []ComponentRef         `json:"component_refs,omitempty"` // Inter-component references (outgoing - components this component depends on)
+	CodeStats        interface{}            `json:"code_stats,omitempty"`
 }
 
 // Edge represents a relationship between components and technologies
@@ -38,8 +38,8 @@ type Edge struct {
 	Target *Payload `json:"target"`
 }
 
-// ComponentDependency represents a dependency between two components in the same project
-type ComponentDependency struct {
+// ComponentRef represents a reference to another component in the same project
+type ComponentRef struct {
 	TargetID    string `json:"target_id"`    // Component ID being depended on
 	PackageName string `json:"package_name"` // Package name that created the link
 }
@@ -84,18 +84,18 @@ func NewPayload(name string, paths []string) *Payload {
 	}
 
 	return &Payload{
-		ID:                    GenerateComponentID("temp", name, relativePath), // Temporary ID, will be replaced
-		Name:                  name,
-		Path:                  paths,
-		Techs:                 make([]string, 0),
-		Languages:             make(map[string]int),
-		Dependencies:          make([]Dependency, 0),
-		Childs:                make([]*Payload, 0),
-		Edges:                 make([]Edge, 0),
-		ComponentDependencies: make([]ComponentDependency, 0),
-		Licenses:              make([]License, 0),
-		Reason:                make(map[string][]string),
-		Properties:            make(map[string]interface{}),
+		ID:            GenerateComponentID("temp", name, relativePath), // Temporary ID, will be replaced
+		Name:          name,
+		Path:          paths,
+		Techs:         make([]string, 0),
+		Languages:     make(map[string]int),
+		Dependencies:  make([]Dependency, 0),
+		Childs:        make([]*Payload, 0),
+		Edges:         make([]Edge, 0),
+		ComponentRefs: make([]ComponentRef, 0),
+		Licenses:      make([]License, 0),
+		Reason:        make(map[string][]string),
+		Properties:    make(map[string]interface{}),
 	}
 }
 

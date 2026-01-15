@@ -172,7 +172,7 @@
                     },
                     "description": "List of dependencies detected in this component"
                 },
-                "component_dependencies": {
+                "component_refs": {
                     "type": "array",
                     "items": {
                         "type": "object",
@@ -189,7 +189,7 @@
                         "required": ["target_id", "package_name"],
                         "additionalProperties": false
                     },
-                    "description": "Inter-component dependencies (outgoing - components this component depends on)"
+                    "description": "Inter-component references (outgoing - components this component depends on)"
                 },
                 "childs": {
                     "type": "array",

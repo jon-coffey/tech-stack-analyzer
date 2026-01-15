@@ -327,8 +327,8 @@ func (s *Scanner) Scan() (*types.Payload, error) {
 	// Assign unique IDs to the entire payload tree
 	payload.AssignIDs(s.resolveRootID(basePath))
 
-	// Resolve inter-component dependencies
-	s.resolveComponentDependencies(payload)
+	// Resolve inter-component references
+	s.resolveComponentRefs(payload)
 
 	// Report scan complete
 	s.progress.ScanComplete(fileCount, componentCount, time.Since(startTime))

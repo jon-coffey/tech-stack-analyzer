@@ -49,35 +49,35 @@ func (s *Scanner) buildComponentRegistry(payload *types.Payload, registry *Compo
 	}
 }
 
-// resolveComponentDependencies resolves inter-component dependencies
-func (s *Scanner) resolveComponentDependencies(root *types.Payload) {
+// resolveComponentRefs resolves inter-component references
+func (s *Scanner) resolveComponentRefs(root *types.Payload) {
 	// Build registry of all components by their package names
 	registry := NewComponentRegistry()
 	s.buildComponentRegistry(root, registry)
 
 	// Resolve dependencies for all components
-	s.resolveComponentDependenciesRecursive(root, registry)
+	s.resolveComponentRefsRecursive(root, registry)
 }
 
-// resolveComponentDependenciesRecursive walks the tree and resolves dependencies
-func (s *Scanner) resolveComponentDependenciesRecursive(payload *types.Payload, registry *ComponentRegistry) {
+// resolveComponentRefsRecursive walks the tree and resolves component references
+func (s *Scanner) resolveComponentRefsRecursive(payload *types.Payload, registry *ComponentRegistry) {
 	// Resolve dependencies for current component
 	for _, dep := range payload.Dependencies {
 		// Try to find a matching component
 		targetComponent := s.findMatchingComponent(dep, registry)
 		if targetComponent != nil && targetComponent.ID != payload.ID {
-			// Create component dependency
-			compDep := types.ComponentDependency{
+			// Create component reference
+			compRef := types.ComponentRef{
 				TargetID:    targetComponent.ID,
 				PackageName: dep.Name,
 			}
-			payload.ComponentDependencies = append(payload.ComponentDependencies, compDep)
+			payload.ComponentRefs = append(payload.ComponentRefs, compRef)
 		}
 	}
 
 	// Recursively process child components
 	for _, child := range payload.Childs {
-		s.resolveComponentDependenciesRecursive(child, registry)
+		s.resolveComponentRefsRecursive(child, registry)
 	}
 }
 

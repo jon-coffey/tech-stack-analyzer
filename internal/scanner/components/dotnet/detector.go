@@ -210,7 +210,7 @@ func (d *Detector) addProjectReferences(payload *types.Payload, projectReference
 			Version:  "",
 			Scope:    "prod",
 			Direct:   true,
-			Metadata: map[string]interface{}{"path": projRef},
+			Metadata: map[string]interface{}{"path": normalizedPath},
 		})
 	}
 }

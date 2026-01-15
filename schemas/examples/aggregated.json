@@ -2,10 +2,10 @@
   "metadata": {
     "format": "aggregated",
     "source": "tech-stack-scanner",
-    "timestamp": "2026-01-14T17:16:56Z",
+    "timestamp": "2026-01-15T07:53:49Z",
     "scan_path": "/path/to/your/project",
     "specVersion": "0.1",
-    "duration_ms": 1183,
+    "duration_ms": 1132,
     "file_count": 201,
     "component_count": 4,
     "language_count": 8,
@@ -15,7 +15,7 @@
   "git": [
     {
       "branch": "main",
-      "commit": "0006520",
+      "commit": "c668231",
       "is_dirty": true,
       "remote_url": "https://github.com/petrarca/tech-stack-analyzer.git"
     }
@@ -112,29 +112,29 @@
   ],
   "code_stats": {
     "total": {
-      "lines": 58565,
-      "code": 48140,
-      "comments": 3621,
-      "blanks": 6804,
-      "complexity": 4166,
+      "lines": 58720,
+      "code": 48280,
+      "comments": 3619,
+      "blanks": 6821,
+      "complexity": 4196,
       "files": 198
     },
     "by_type": {
       "programming": {
         "total": {
-          "lines": 39194,
-          "code": 30284,
-          "comments": 3537,
-          "blanks": 5373,
-          "complexity": 4166,
+          "lines": 39305,
+          "code": 30387,
+          "comments": 3535,
+          "blanks": 5383,
+          "complexity": 4196,
           "files": 170
         },
         "metrics": {
           "comment_ratio": 0.12,
           "code_density": 0.77,
-          "avg_file_size": 230.55,
-          "complexity_per_kloc": 137.56,
-          "avg_complexity": 24.51,
+          "avg_file_size": 231.21,
+          "complexity_per_kloc": 138.09,
+          "avg_complexity": 24.68,
           "primary_languages": [
             {
               "language": "Go",
@@ -165,10 +165,10 @@
       },
       "prose": {
         "total": {
-          "lines": 6385,
-          "code": 5045,
+          "lines": 6429,
+          "code": 5082,
           "comments": 0,
-          "blanks": 1340,
+          "blanks": 1347,
           "complexity": 0,
           "files": 14
         },
@@ -180,21 +180,21 @@
     },
     "analyzed": {
       "total": {
-        "lines": 58565,
-        "code": 48140,
-        "comments": 3621,
-        "blanks": 6804,
-        "complexity": 4166,
+        "lines": 58720,
+        "code": 48280,
+        "comments": 3619,
+        "blanks": 6821,
+        "complexity": 4196,
         "files": 198
       },
       "by_language": [
         {
           "language": "Go",
-          "lines": 39194,
-          "code": 30284,
-          "comments": 3537,
-          "blanks": 5373,
-          "complexity": 4166,
+          "lines": 39305,
+          "code": 30387,
+          "comments": 3535,
+          "blanks": 5383,
+          "complexity": 4196,
           "files": 170
         },
         {
@@ -208,10 +208,10 @@
         },
         {
           "language": "Markdown",
-          "lines": 6364,
-          "code": 5028,
+          "lines": 6408,
+          "code": 5065,
           "comments": 0,
-          "blanks": 1336,
+          "blanks": 1343,
           "complexity": 0,
           "files": 13
         },
