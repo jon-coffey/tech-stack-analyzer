@@ -2,10 +2,10 @@
   "metadata": {
     "format": "full",
     "source": "tech-stack-scanner",
-    "timestamp": "2026-01-15T07:53:48Z",
+    "timestamp": "2026-01-15T10:32:57Z",
     "scan_path": "/path/to/your/project",
     "specVersion": "0.1",
-    "duration_ms": 1206,
+    "duration_ms": 1279,
     "file_count": 201,
     "component_count": 4,
     "language_count": 8,
@@ -14,8 +14,8 @@
   },
   "git": {
     "branch": "main",
-    "commit": "c668231",
-    "is_dirty": true,
+    "commit": "a7487a3",
+    "is_dirty": false,
     "remote_url": "https://github.com/petrarca/tech-stack-analyzer.git"
   },
   "id": "a30339f5ba410aaa588e",
@@ -47,8 +47,8 @@
         "golang"
       ],
       "techs": [
-        "git",
-        "golang"
+        "golang",
+        "git"
       ],
       "languages": {
         "Go": 168,
