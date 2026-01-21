@@ -181,6 +181,11 @@ func (l *StackBasedLoader) InitializeWithTopLevelExcludes(basePath string, exclu
 	l.basePath = basePath
 	var allExcludes []string
 
+	// Always exclude .git directory (Git's internal metadata)
+	// Git itself ignores this directory, but we need to exclude it explicitly
+	// for performance (prevents scanning .git/objects/* structure)
+	allExcludes = append(allExcludes, ".git")
+
 	// Add CLI exclude patterns first (lowest priority)
 	allExcludes = append(allExcludes, excludePatterns...)
 
