@@ -130,20 +130,46 @@ dependencies:
 
 ## Adding Component Detectors
 
+All detectors are plugins under `internal/scanner/components/{tech}/`. See `docs/design/scanner-architecture.md` for the full architecture and `docs/design/detector-implementation.md` for the detector reference.
+
 Create `internal/scanner/components/{tech}/detector.go`:
 ```go
-func DetectComponent(files []types.File, currentPath, basePath string, provider types.Provider) *types.Payload {
-    // Check for key files, parse dependencies
+package mytech
+
+import (
+    "github.com/petrarca/tech-stack-analyzer/internal/scanner/components"
+    "github.com/petrarca/tech-stack-analyzer/internal/types"
+)
+
+type Detector struct{}
+
+func (d *Detector) Name() string { return "mytech" }
+
+func (d *Detector) Detect(files []types.File, currentPath, basePath string,
+    provider types.Provider, depDetector components.DependencyDetector) []*types.Payload {
+    // Check for key files, read via provider, parse dependencies
+    // Match deps: depDetector.MatchDependencies(names, "depType")
     // Return nil if not detected
+    return nil
+}
+
+func init() {
+    components.Register(&Detector{})
 }
 ```
 
-Register in `internal/scanner/components/registry.go`:
+Add blank import in `internal/scanner/scanner.go`:
 ```go
-func init() {
-    registry["tech-name"] = DetectComponent
-}
+_ "github.com/petrarca/tech-stack-analyzer/internal/scanner/components/mytech"
 ```
+
+**Process:**
+1. Create detector package with `detector.go` and `detector_test.go`
+2. Implement `Detector` interface (Name + Detect)
+3. Register via `init()` with `components.Register()`
+4. Add blank import in `scanner.go`
+5. Create parser in `parsers/` if needed (keep parsing separate from detection)
+6. Run: `task fct`
 
 ## Testing
 
@@ -193,6 +219,7 @@ func TestDetector(t *testing.T) {
 - After updating `schemas/stack-analyzer-output.json` schema, the example outputs shall be re-created using `task build:examples`
 - Add package-level documentation comment to all Go packages (required for godoc and code clarity)
 - When technology rules or categories are added or modified, generate taxonomy files with `task build:taxonomies`
+- No emojis in code, comments, test output, or documentation
 
 ### Security
 - No path traversal, no `exec.Command`, no hardcoded secrets
