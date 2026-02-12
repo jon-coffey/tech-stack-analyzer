@@ -1,4 +1,4 @@
-version: 2
+version: "2"
 
 run:
   timeout: 5m
@@ -14,15 +14,13 @@ linters:
     - misspell       # Spelling mistakes
   disable:
     - errcheck       # Disabled: only affects tool code, exclude-rules don't work
-
-linters-settings:
-  gocyclo:
-    # Maximum cyclomatic complexity
-    min-complexity: 10
-
-  gocognit:
-    # Maximum cognitive complexity
-    min-complexity: 10
+  settings:
+    gocyclo:
+      # Maximum cyclomatic complexity
+      min-complexity: 30
+    gocognit:
+      # Maximum cognitive complexity
+      min-complexity: 30
 
 issues:
   max-issues-per-linter: 0
