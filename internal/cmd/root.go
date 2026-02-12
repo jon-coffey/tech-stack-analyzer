@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/petrarca/tech-stack-analyzer/internal/version"
 	"github.com/spf13/cobra"
 )
 
@@ -15,7 +16,7 @@ used in your codebase by analyzing configuration files, dependencies, and code p
 
 It provides comprehensive analysis with 700+ technology rules covering databases,
 frameworks, tools, cloud services, and more.`,
-	Version: "1.0.0",
+	Version: version.Full(),
 }
 
 // Execute runs the root command

@@ -3,21 +3,29 @@ version: '3'
 vars:
   BINARY_TARGET: ./bin
   BINARY_NAME: '{{.BINARY_TARGET}}/stack-analyzer'
+  VERSION_PKG: github.com/petrarca/tech-stack-analyzer/internal/version
+  VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
+  COMMIT:
+    sh: git rev-parse --short HEAD 2>/dev/null || echo "none"
+  BUILD_DATE:
+    sh: date -u '+%Y-%m-%dT%H:%M:%SZ'
+  LDFLAGS: '-s -w -X {{.VERSION_PKG}}.Version={{.VERSION}} -X {{.VERSION_PKG}}.Commit={{.COMMIT}} -X {{.VERSION_PKG}}.Date={{.BUILD_DATE}}'
 
 tasks:
   build:
     desc: Compile the stack-analyzer binary
     cmds:
-      - go build -o {{.BINARY_NAME}} ./cmd/scanner
+      - go build -ldflags '{{.LDFLAGS}}' -o {{.BINARY_NAME}} ./cmd/scanner
 
   build:all:
     desc: Build for all supported platforms
     deps: [check]
     cmds:
-      - GOOS=darwin GOARCH=amd64 go build -o {{.BINARY_NAME}}-darwin-amd64 ./cmd/scanner
-      - GOOS=darwin GOARCH=arm64 go build -o {{.BINARY_NAME}}-darwin-arm64 ./cmd/scanner
-      - GOOS=linux GOARCH=amd64 go build -o {{.BINARY_NAME}}-linux-amd64 ./cmd/scanner
-      - GOOS=windows GOARCH=amd64 go build -o {{.BINARY_NAME}}-windows-amd64.exe ./cmd/scanner
+      - GOOS=darwin GOARCH=amd64 go build -ldflags '{{.LDFLAGS}}' -o {{.BINARY_NAME}}-darwin-amd64 ./cmd/scanner
+      - GOOS=darwin GOARCH=arm64 go build -ldflags '{{.LDFLAGS}}' -o {{.BINARY_NAME}}-darwin-arm64 ./cmd/scanner
+      - GOOS=linux GOARCH=amd64 go build -ldflags '{{.LDFLAGS}}' -o {{.BINARY_NAME}}-linux-amd64 ./cmd/scanner
+      - GOOS=windows GOARCH=amd64 go build -ldflags '{{.LDFLAGS}}' -o {{.BINARY_NAME}}-windows-amd64.exe ./cmd/scanner
 
   format:
     desc: Format Go code using gofmt
