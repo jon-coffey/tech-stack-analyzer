@@ -33,14 +33,10 @@ archives:
     formats:
       - tar.gz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-  - id: windows
-    formats:
-      - zip
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    builds:
-      - stack-analyzer
-    goos:
-      - windows
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
 
 checksum:
   name_template: "checksums.txt"
@@ -55,9 +51,6 @@ changelog:
       - "^chore:"
 
 release:
-  github:
-    owner: "{{ .Env.GITHUB_REPOSITORY_OWNER }}"
-    name: tech-stack-analyzer
   draft: false
   prerelease: auto
   name_template: "v{{ .Version }}"
