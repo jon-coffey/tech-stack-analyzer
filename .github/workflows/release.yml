@@ -76,4 +76,4 @@ jobs:
       - name: Test release binary
         run: |
           ./dist/stack-analyzer_*_linux_amd64/stack-analyzer --help
-          ./dist/stack-analyzer_*_linux_amd64/stack-analyzer version
+          ./dist/stack-analyzer_*_linux_amd64/stack-analyzer --version
