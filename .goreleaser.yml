@@ -50,9 +50,6 @@ changelog:
       - "^chore:"
 
 release:
-  github:
-    owner: petrarca
-    name: tech-stack-analyzer
   draft: false
   prerelease: auto
   name_template: "v{{ .Version }}"
